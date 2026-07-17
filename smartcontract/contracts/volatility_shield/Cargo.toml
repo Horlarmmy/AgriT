@@ -1,7 +1,8 @@
 [package]
-name = "volatility_shield"
+name = "agritrust_vyc"
 version = "0.1.0"
 edition = "2021"
+description = "AgriTrust VYC (Verifiable Yield Certificate) Soroban smart contract"
 
 [lib]
 crate-type = ["cdylib", "rlib"]
