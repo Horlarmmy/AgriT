@@ -5,7 +5,7 @@ use soroban_sdk::{symbol_short, testutils::Address as _, String};
 fn setup() -> (Env, Address, Address) {
     let env = Env::default();
     let admin = Address::generate(&env);
-    let contract_id = env.register(AgriTrust, ());
+    let contract_id = env.register_contract(None, AgriTrust);
     (env, admin, contract_id)
 }
 
@@ -96,9 +96,33 @@ fn test_farmer_vyc_list() {
     let farmer = Address::generate(&env);
 
     // Mint 3 VYCs for the same farmer
-    client.mint_vyc(&admin, &farmer, &70, &30_000_000, &symbol_short!("MAIZE"), &symbol_short!("NGLA"), &dummy_hash(&env));
-    client.mint_vyc(&admin, &farmer, &75, &50_000_000, &symbol_short!("MAIZE"), &symbol_short!("NGLA"), &dummy_hash(&env));
-    client.mint_vyc(&admin, &farmer, &80, &80_000_000, &symbol_short!("COCOA"), &symbol_short!("GHAA"), &dummy_hash(&env));
+    client.mint_vyc(
+        &admin,
+        &farmer,
+        &70,
+        &30_000_000,
+        &symbol_short!("MAIZE"),
+        &symbol_short!("NGLA"),
+        &dummy_hash(&env),
+    );
+    client.mint_vyc(
+        &admin,
+        &farmer,
+        &75,
+        &50_000_000,
+        &symbol_short!("MAIZE"),
+        &symbol_short!("NGLA"),
+        &dummy_hash(&env),
+    );
+    client.mint_vyc(
+        &admin,
+        &farmer,
+        &80,
+        &80_000_000,
+        &symbol_short!("COCOA"),
+        &symbol_short!("GHAA"),
+        &dummy_hash(&env),
+    );
 
     let farmer_ids = client.get_farmer_vycs(&farmer);
     assert_eq!(farmer_ids.len(), 3);
@@ -118,8 +142,24 @@ fn test_multiple_farmers_isolated() {
     let farmer_a = Address::generate(&env);
     let farmer_b = Address::generate(&env);
 
-    client.mint_vyc(&admin, &farmer_a, &70, &40_000_000, &symbol_short!("MAIZE"), &symbol_short!("NGLA"), &dummy_hash(&env));
-    client.mint_vyc(&admin, &farmer_b, &85, &70_000_000, &symbol_short!("SOYA"), &symbol_short!("NGKN"), &dummy_hash(&env));
+    client.mint_vyc(
+        &admin,
+        &farmer_a,
+        &70,
+        &40_000_000,
+        &symbol_short!("MAIZE"),
+        &symbol_short!("NGLA"),
+        &dummy_hash(&env),
+    );
+    client.mint_vyc(
+        &admin,
+        &farmer_b,
+        &85,
+        &70_000_000,
+        &symbol_short!("SOYA"),
+        &symbol_short!("NGKN"),
+        &dummy_hash(&env),
+    );
 
     let a_ids = client.get_farmer_vycs(&farmer_a);
     let b_ids = client.get_farmer_vycs(&farmer_b);
@@ -141,8 +181,13 @@ fn test_update_status_redeem() {
 
     let farmer = Address::generate(&env);
     let id = client.mint_vyc(
-        &admin, &farmer, &72, &60_000_000,
-        &symbol_short!("MAIZE"), &symbol_short!("NGLA"), &dummy_hash(&env),
+        &admin,
+        &farmer,
+        &72,
+        &60_000_000,
+        &symbol_short!("MAIZE"),
+        &symbol_short!("NGLA"),
+        &dummy_hash(&env),
     );
 
     // Simulate successful harvest — mark as Redeemed
@@ -175,10 +220,26 @@ fn test_get_vyc_count_increments() {
     assert_eq!(client.get_vyc_count(), 0);
 
     let farmer = Address::generate(&env);
-    client.mint_vyc(&admin, &farmer, &65, &25_000_000, &symbol_short!("MAIZE"), &symbol_short!("NGLA"), &dummy_hash(&env));
+    client.mint_vyc(
+        &admin,
+        &farmer,
+        &65,
+        &25_000_000,
+        &symbol_short!("MAIZE"),
+        &symbol_short!("NGLA"),
+        &dummy_hash(&env),
+    );
     assert_eq!(client.get_vyc_count(), 1);
 
-    client.mint_vyc(&admin, &farmer, &70, &35_000_000, &symbol_short!("MAIZE"), &symbol_short!("NGLA"), &dummy_hash(&env));
+    client.mint_vyc(
+        &admin,
+        &farmer,
+        &70,
+        &35_000_000,
+        &symbol_short!("MAIZE"),
+        &symbol_short!("NGLA"),
+        &dummy_hash(&env),
+    );
     assert_eq!(client.get_vyc_count(), 2);
 }
 

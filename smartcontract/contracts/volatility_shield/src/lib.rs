@@ -1,7 +1,5 @@
 #![no_std]
-use soroban_sdk::{
-    contract, contractimpl, contracttype, Address, Env, String, Symbol, Vec, Map,
-};
+use soroban_sdk::{contract, contractimpl, contracttype, Address, Env, String, Symbol, Vec};
 
 // ─── Storage Keys ────────────────────────────────────────────────────────────
 
@@ -9,8 +7,8 @@ use soroban_sdk::{
 pub enum DataKey {
     Admin,
     VycCounter,
-    Vyc(u64),             // VYC id → VycRecord
-    FarmerVycs(Address),  // farmer address → Vec<u64> (their VYC ids)
+    Vyc(u64),            // VYC id → VycRecord
+    FarmerVycs(Address), // farmer address → Vec<u64> (their VYC ids)
 }
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -102,6 +100,7 @@ impl AgriTrust {
     /// crop:            Crop identifier symbol.
     /// region:          Region code symbol.
     /// activity_hash:   SHA-256 hex of the proof-of-activity payload.
+    #[allow(clippy::too_many_arguments)]
     pub fn mint_vyc(
         env: Env,
         admin: Address,
@@ -156,9 +155,7 @@ impl AgriTrust {
             updated_at: now,
         };
 
-        env.storage()
-            .persistent()
-            .set(&DataKey::Vyc(new_id), &vyc);
+        env.storage().persistent().set(&DataKey::Vyc(new_id), &vyc);
 
         // Append this VYC id to the farmer's list.
         let mut farmer_vycs: Vec<u64> = env
@@ -196,7 +193,10 @@ impl AgriTrust {
     }
 
     pub fn get_vyc_count(env: Env) -> u64 {
-        env.storage().instance().get(&DataKey::VycCounter).unwrap_or(0)
+        env.storage()
+            .instance()
+            .get(&DataKey::VycCounter)
+            .unwrap_or(0)
     }
 
     // ── Status Updates ─────────────────────────────────────────────────────
@@ -233,10 +233,8 @@ impl AgriTrust {
         env.storage().persistent().set(&DataKey::Vyc(id), &vyc);
 
         // Emit a status-change event for liquidity providers and insurance oracles.
-        env.events().publish(
-            (Symbol::new(&env, "vyc_status"), id),
-            (new_status, now),
-        );
+        env.events()
+            .publish((Symbol::new(&env, "vyc_status"), id), (new_status, now));
     }
 }
 
