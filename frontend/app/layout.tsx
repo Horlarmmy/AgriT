@@ -3,8 +3,8 @@ import "./globals.css";
 import { Providers } from "./providers";
 
 export const metadata: Metadata = {
-  title: "XHedge",
-  description: "Stablecoin Volatility Shield for Weak Currencies",
+  title: "AgriTrust",
+  description: "Verifiable Yield Certificates for Smallholder Farmers",
 };
 
 export default function RootLayout({

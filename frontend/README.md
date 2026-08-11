@@ -4,8 +4,7 @@ This directory contains the **Next.js** PWA frontend for AgriTrust Protocol — 
 
 ## 📚 Documentation
 
-- **[Frontend Issues Tracker](../docs/ISSUES-FRONTEND.md)**: Pick a task here.
-- **[Integration Guide](../docs/FRONTEND_GUIDE.md)**: Learn how to connect Freighter.
+- **[Integration Guide](../docs/FRONTEND_GUIDE.md)**: Learn how to connect Freighter and interact with the VYC contract.
 
 ## 🚀 Quick Start
 
