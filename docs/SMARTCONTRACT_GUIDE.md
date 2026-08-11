@@ -157,42 +157,54 @@ Run it with `cargo test`.
 
 ---
 
-## 8. IntentRemit-Specific Notes 📦🚀
+## 8. AgriTrust-Specific Notes (the VYC Contract) 🌾
 
-IntentRemit uses Soroban for time-locked Growth Vaults. Key patterns:
+AgriTrust's `agritrust_vyc` contract mints **Verifiable Yield Certificates (VYCs)** — 
+tokenized records of a farmer's expected harvest value. Key patterns:
 
-- **Time-Lock:** Store `unlock_time` as u64 timestamp
-- **Conditional Release:** Calculate `immediate_amount = total * immediate_pct / 100`
-- **Goal Tracking:** Store goal type as Symbol for categorization
-- **Authorization:** Only vault owner can withdraw after unlock time
+- **Admin-Centric Minting:** Only the protocol admin can mint or update a VYC, preventing self-minting and fraud.
+- **Persistent State:** VYCs, the global counter, and per-farmer ID lists live in persistent storage.
+- **Cross-Chain Scoring:** The `score` field (0-100) is produced off-chain by the FluxID scoring engine.
+- **Status Lifecycle:** `Active → Redeemed | Expired | Cancelled` (only `Active` VYCs can be updated).
 
-### Example: Growth Vault Contract Structure
+### The `agritrust_vyc` Contract Structure (contracts/volatility_shield)
 
 ```rust
 #[contract]
-pub struct GrowthVault;
+pub struct AgriTrust;
 
 #[contractimpl]
-impl GrowthVault {
-    pub fn create_vault(
+impl AgriTrust {
+    pub fn init(env: Env, admin: Address) { /* set Admin + VycCounter */ }
+
+    pub fn mint_vyc(
         env: Env,
-        owner: Address,
-        locked_amount: i128,
-        unlock_time: u64,
-        goal: Symbol
-    ) -> Address {
-        // Store vault data
-        // Return vault ID
-    }
-    
-    pub fn withdraw(env: Env, vault_id: Address) {
-        // Check unlock_time has passed
-        // Check caller is owner
-        // Transfer funds
+        admin: Address,       // requires admin auth
+        farmer: Address,      // the farmer's Stellar address
+        score: u32,           // FluxID credit score (0-100)
+        expected_yield: i128, // expected harvest value in micro-USDC
+        crop: Symbol,         // "MAIZE", "COCOA", "SOYBEAN"...
+        region: Symbol,       // ISO 3166-2, e.g. "NG-LA"
+        activity_hash: String, // SHA-256 of the proof-of-activity payload
+    ) -> u64 { /* mints a VYC and returns its id */ }
+
+    pub fn get_vyc(env: Env, id: u64) -> Option<VycRecord> { /* read one VYC */ }
+    pub fn get_farmer_vycs(env: Env, farmer: Address) -> Vec<u64> { /* ids per farmer */ }
+    pub fn get_vyc_count(env: Env) -> u64 { /* total minted */ }
+
+    pub fn update_status(env: Env, admin: Address, id: u64, new_status: VycStatus) {
+        // Active -> Redeemed/Expired/Cancelled (admin only, prevents fraud)
     }
 }
 ```
 
+### Deploy & invoke outline
+```bash
+soroban contract build
+soroban contract deploy --wasm target/wasm32-unknown-unknown/release/agritrust_vyc.wasm --source alice --network testnet
+```
+Initialize with the admin, then the backend calls `mint_vyc` after proof-of-activity verification.
+
 ---
 
-*Happy Building! 🚀*
+*Happy Building! 🌾*

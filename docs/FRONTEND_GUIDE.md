@@ -73,9 +73,9 @@ export function useFreighter() {
 
 ---
 
-## 4. Sending Payments (IntentRemit) 💸
+## 4. Sending USDC Payouts 💸
 
-IntentRemit sends USDC/XLM with programmable goals and conditional splits.
+AgriTrust settles farmer payout proceeds in USDC/XLM on Stellar. Here is a standard Stellar payment as a baseline:
 
 ```typescript
 import { 
@@ -119,9 +119,11 @@ async function sendWithGoal(
 
 ---
 
-## 5. Interacting with Growth Vaults 📦
+## 5. Interacting with Yield Certificates (VYCs) 🌾
 
-Call the Soroban contract to create a time-locked vault.
+Call the AgriTrust Soroban contract to mint a **Verifiable Yield Certificate**.
+`mint_vyc` is admin/backend-only (it requires the protocol admin to auth), so this
+call typically lives in the backend dashboard flow after proof-of-activity is verified.
 
 ```typescript
 import { 
@@ -132,31 +134,45 @@ import {
 } from "@stellar/stellar-sdk";
 import { signTransaction } from "@stellar/freighter-api";
 
-const VAULT_CONTRACT_ID = "C...";
+const VYC_CONTRACT_ID = "C...";
 const RPC_URL = "https://soroban-testnet.stellar.org";
 const NETWORK_PASSPHRASE = "Test SDF Network ; September 2015";
 
-async function createGrowthVault(
-  userAddress: string,
-  lockedAmount: number,
-  unlockTime: number,
-  goal: string
+async function mintVyc(
+  adminAddress: string,
+  farmerAddress: string,
+  score: number,
+  expectedYieldMicroUsdc: bigint,
+  crop: string,
+  region: string,
+  activityHash: string
 ) {
   const server = new SorobanRpc.Server(RPC_URL);
-  const account = await server.getAccount(userAddress);
+  const account = await server.getAccount(adminAddress);
   
-  const contract = new Contract(VAULT_CONTRACT_ID);
+  const contract = new Contract(VYC_CONTRACT_ID);
   
   // Encode parameters
-  const unlockTimeArg = xdr.ScVal.scvU64(unlockTime);
-  const amountArg = xdr.ScVal.scvI128(lockedAmount);
-  const goalArg = xdr.ScVal.scvSymbol(goal);
+  const adminArg = xdr.ScVal.scvContractAddress(
+    xdr.PublicKey.publicKeyTypeEd25519(xdr.Uint256.fromXdr(
+      Buffer.from(adminAddress.replace("C", "").slice(0, 32), "hex")
+    ))
+  );
+  const farmerArg = xdr.ScVal.scvAddress(farmerAddress);
+  const scoreArg = xdr.ScVal.scvU32(score);
+  const expectedYieldArg = xdr.ScVal.scvI128(xdr.Int128Parts.fromBigInt(expectedYieldMicroUsdc));
+  const cropArg = xdr.ScVal.scvSymbol(crop);
+  const regionArg = xdr.ScVal.scvSymbol(region);
+  const activityHashArg = xdr.ScVal.scvString(activityHash);
   
   const tx = new TransactionBuilder(account, { 
     fee: "100", 
     networkPassphrase: NETWORK_PASSPHRASE 
   })
-  .addOperation(contract.call("create_vault", [amountArg, unlockTimeArg, goalArg]))
+  .addOperation(contract.call("mint_vyc", [
+    adminArg, farmerArg, scoreArg, expectedYieldArg,
+    cropArg, regionArg, activityHashArg
+  ]))
   .setTimeout(TimeoutInfinite)
   .build();
 
@@ -178,87 +194,79 @@ async function createGrowthVault(
 }
 ```
 
+The RPC URL and passphrase must match the network the contract was deployed to.
+
 ---
 
-## 6. Querying Vault Status 📊
+## 6. Querying Certificate Status 📊
 
-Read the vault to display locked amount and unlock countdown.
+Read a farmer's VYCs to display status, expected yield, and harvest countdown.
 
 ```typescript
-async function getVaultStatus(vaultId: string) {
+async function getVycStatus(vycId: bigint) {
   const server = new SorobanRpc.Server(RPC_URL);
-  const contract = new Contract(VAULT_CONTRACT_ID);
+  const contract = new Contract(VYC_CONTRACT_ID);
 
   const tx = new TransactionBuilder(
     new Account("G...", "0"), 
     { fee: "100", networkPassphrase: NETWORK_PASSPHRASE }
   )
-  .addOperation(contract.call("get_vault_status", [
-    xdr.ScVal.scvAddress(vaultId)
+  .addOperation(contract.call("get_vyc", [
+    xdr.ScVal.scvU64(xdr.Uint64.fromString(vycId.toString())) 
   ]))
   .build();
 
   const sim = await server.simulateTransaction(tx);
   
   if (SorobanRpc.isSimulationSuccess(sim)) {
-    // Parse result to get locked_amount, unlock_time, goal
+    // Parse the VycRecord struct fields:
+    //   [0] id, [1] farmer, [2] score, [3] expected_yield,
+    //   [4] crop, [5] region, [6] activity_hash, [7] status, [8] created_at, [9] updated_at
     const result = sim.result.retval;
     return {
-      lockedAmount: result[0].i128(),
-      unlockTime: result[1].u64(),
-      goal: result[2].sym()
+      id: result[0].u64().toString(),
+      score: result[2].u32(),
+      expectedYield: result[3].i128().toString(),
+      crop: result[4].sym().toString(),
+      region: result[5].sym().toString(),
+      status: result[7].map()
     };
   }
 }
+
+// Farmers query their own certificates with get_farmer_vycs(farmer),
+// which returns the list of VYC IDs to fetch individually.
 ```
 
 ---
 
-## 7. AI Allocation Suggestions 🧠
+## 7. Credit Scoring & Yield Insights 🧠
 
-IntentRemit uses rule-based AI to suggest optimal splits.
+Before a VYC is minted, the AgriTrust **backend** computes the farmer's credit
+score (0-100) with the FluxID scoring engine and stores a proof-of-activity hash.
+The frontend can surface this score via `get_vyc`. A simple client-side
+illustration of how the score feeds the yield decision:
 
 ```typescript
-type Goal = "SchoolFees" | "Rent" | "BusinessCapital" | "Custom";
+type ScoreBand = "low" | "medium" | "high";
 
-interface AllocationSuggestion {
-  immediatePercent: number;
-  lockedPercent: number;
-  reasoning: string;
+function scoreBand(score: number): ScoreBand {
+  return score >= 70 ? "high" : score >= 40 ? "medium" : "low";
 }
 
-function getAllocationSuggestion(goal: Goal, amount: number): AllocationSuggestion {
-  const suggestions: Record<Goal, AllocationSuggestion> = {
-    SchoolFees: { 
-      immediatePercent: 55, 
-      lockedPercent: 45, 
-      reasoning: "Keep portion locked for semester continuity" 
-    },
-    Rent: { 
-      immediatePercent: 70, 
-      lockedPercent: 30, 
-      reasoning: "Priority to immediate rent payment" 
-    },
-    BusinessCapital: { 
-      immediatePercent: 50, 
-      lockedPercent: 50, 
-      reasoning: "Balance immediate needs with growth capital" 
-    },
-    Custom: { 
-      immediatePercent: 60, 
-      lockedPercent: 40, 
-      reasoning: "Default split for flexibility" 
-    }
-  };
-  
-  return suggestions[goal];
+function eligibilityMessage(score: number, expectedYieldMicroUsdc: bigint): string {
+  const band = scoreBand(score);
+  if (band === "high") {
+    return `Eligible: expected yield ${expectedYieldMicroUsdc.toString()} micro-USDC qualifies for full liquidity matching.`;
+  }
+  if (band === "medium") {
+    return `Partial eligibility: conservative liquidity matched against expected yield.`;
+  }
+  return `Not yet eligible: improved proof-of-activity history raises the score.`;
 }
-
-// Usage
-const suggestion = getAllocationSuggestion("SchoolFees", 1000);
-console.log(`${suggestion.immediatePercent}% now, ${suggestion.lockedPercent}% locked`);
-// Output: 55% now, 45% locked
 ```
+
+The score itself comes from the backend — never compute it client-side.
 
 ---
 
@@ -268,8 +276,8 @@ console.log(`${suggestion.immediatePercent}% now, ${suggestion.lockedPercent}% l
 - [ ] **Passphrase:** Use the correct Network Passphrase.
 - [ ] **Simulation:** ALWAYS simulate before asking the user to sign. It catches errors early and calculates gas.
 - [ ] **XDR:** Familiarize yourself with Stellar's data format (XDR) if you aren't using generated bindings.
-- [ ] **Vault Security:** Verify unlock time hasn't passed before allowing withdrawal.
+- [ ] **VYC Access Control:** Only the protocol admin can mint or update a VYC; the farmer frontend only reads certificates.
 
 ---
 
-*Ready to build the future of programmable remittances? 🚀*
+*Ready to build the trust layer for verifiable agricultural finance? 🌾*
