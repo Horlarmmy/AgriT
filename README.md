@@ -5,13 +5,13 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Built on Stellar](https://img.shields.io/badge/Built%20on-Stellar-purple)](https://stellar.org)
 
-## 🧠 Overview
+##  Overview
 
 **AgriTrust Protocol** is a liquidity primitive built on Stellar that turns a farmer's seasonal behavior (planting, harvesting, and selling) into a **Verifiable Yield Certificate (VYC)**. It allows smallholder farmers in Africa to access global liquidity and parametric insurance without needing traditional collateral like land titles.
 
 ---
 
-## ❗ Problem
+##  Problem
 
 Smallholder farmers (60% of Africa's workforce) are **financially invisible**:
 
@@ -22,7 +22,7 @@ Smallholder farmers (60% of Africa's workforce) are **financially invisible**:
 
 ---
 
-## 💡 Solution
+##  Solution
 
 AgriTrust creates a **3-step trust loop** using Soroban:
 
@@ -32,33 +32,33 @@ AgriTrust creates a **3-step trust loop** using Soroban:
 
 ---
 
-## 🎯 Core Features
+##  Core Features
 
-### 1. 🎫 Verifiable Yield Certificate (VYC)
+### 1.  Verifiable Yield Certificate (VYC)
 
 - Tokenized asset (NFT/Token) representing "Expected Harvest Value".
 - Based on historical data, weather patterns, and verified inputs.
 
-### 2. ⚡ Instant Settlement
+### 2.  Instant Settlement
 
 - Payouts in USDC or local stablecoins (NGNC, ZARP).
 - Low-fee micro-transactions via Stellar.
 
-### 3. ⛈️ Parametric Insurance
+### 3.  Parametric Insurance
 
 - Automated payouts if weather conditions (e.g., drought) are met.
 - Enforced by Soroban smart contracts.
 
-### 4. 🧠 Credit Scoring Engine
+### 4.  Credit Scoring Engine
 
 - Rule-based behavioral scoring for smallholder farmers.
 - Turns "activity" into "creditworthiness".
 
 ---
 
-## 🏗️ Technical Architecture
+##  Technical Architecture
 
-### 🔗 Blockchain Layer
+###  Blockchain Layer
 
 - **Soroban Smart Contracts**
   - VYC generation logic
@@ -68,20 +68,20 @@ AgriTrust creates a **3-step trust loop** using Soroban:
   - Fast, low-cost asset issuance
   - Native stablecoin support (USDC, NGNC, ZARP)
 
-### 🖥️ Frontend
+###  Frontend
 
 - Next.js (React)
 - TypeScript & Tailwind CSS
 - Mobile-first (PWA) with USSD hooks
 
-### 🔌 Wallet Integration
+###  Wallet Integration
 
 - Freighter Wallet
 - Stellar JS SDK
 
 ---
 
-## 📂 Project Structure
+##  Project Structure
 
 ```
 AgriT/
@@ -97,7 +97,7 @@ AgriT/
 
 ---
 
-## 🚀 Getting Started
+##  Getting Started
 
 ### Prerequisites
 
@@ -122,15 +122,15 @@ cargo build
 
 ---
 
-## 📚 Documentation
+##  Documentation
 
-- 📘 **[Smart Contract Guide](./docs/SMARTCONTRACT_GUIDE.md)**
-- 🌐 **[Frontend Integration Guide](./docs/FRONTEND_GUIDE.md)**
-- 📋 **[PRD (Elite Project Proposal)](./PRD.md)**
+-  **[Smart Contract Guide](./docs/SMARTCONTRACT_GUIDE.md)**
+-  **[Frontend Integration Guide](./docs/FRONTEND_GUIDE.md)**
+-  **[PRD (Elite Project Proposal)](./PRD.md)**
 
 ---
 
-## 🤝 Contributing
+##  Contributing
 
 See [CONTRIBUTING.md](CONTRIBUTING.md).
 
