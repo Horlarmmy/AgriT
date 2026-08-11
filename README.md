@@ -1,4 +1,4 @@
-# AgriTrust Protocol 🚀
+# AgriTrust Protocol
 
 > **The Programmable Trust Layer for Smallholder Farmers** — Bridging the gap between the soil and the stablecoin.
 
@@ -15,10 +15,10 @@
 
 Smallholder farmers (60% of Africa's workforce) are **financially invisible**:
 
-- 📉 Only 3% of bank lending goes to agriculture.
-- 🚫 No "financial identity" or collateral.
-- 💸 High exchange rate volatility and slow settlement.
-- ⛈️ One bad harvest away from poverty with no insurance.
+- Only 3% of bank lending goes to agriculture.
+- No "financial identity" or collateral.
+- High exchange rate volatility and slow settlement.
+- One bad harvest away from poverty with no insurance.
 
 ---
 
@@ -26,9 +26,9 @@ Smallholder farmers (60% of Africa's workforce) are **financially invisible**:
 
 AgriTrust creates a **3-step trust loop** using Soroban:
 
-- 📝 **Proof of Activity:** Farmers log activity (e.g., buying seeds) via USSD/Mobile.
-- 🎫 **VYC Primitive:** The protocol generates a tokenized certificate representing expected harvest value.
-- 💰 **Instant Liquidity:** Investors provide liquidity against VYCs, settled instantly in USDC/Stablecoins.
+- **Proof of Activity:** Farmers log activity (e.g., buying seeds) via USSD/Mobile.
+- **VYC Primitive:** The protocol generates a tokenized certificate representing expected harvest value.
+- **Instant Liquidity:** Investors provide liquidity against VYCs, settled instantly in USDC/Stablecoins.
 
 ---
 
