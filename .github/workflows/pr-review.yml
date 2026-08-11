@@ -176,6 +176,21 @@ jobs:
           fi
           npm run build
 
+      # ── Backend checks ───────────────────────────────────────────────────
+      - name: Install Backend Dependencies
+        run: |
+          cd backend
+          npm ci
+
+      - name: Backend Typecheck, Build & Tests
+        id: backend_review
+        continue-on-error: true
+        run: |
+          cd backend
+          npm run typecheck
+          npm run build
+          npm test
+
       # ── Smart contract checks ────────────────────────────────────────────
       - name: Install Rust (pinned for soroban-sdk 20)
         uses: dtolnay/rust-toolchain@master
@@ -239,6 +254,13 @@ jobs:
           gh pr comment $PR_NUMBER --body "$SELECTED"
           exit 1
 
+      - name: ❌ Handle Backend Review Failure
+        if: steps.backend_review.outcome == 'failure'
+        run: |
+          PR_TITLE=$(gh pr view $PR_NUMBER --json title -q .title)
+          gh pr comment $PR_NUMBER --body "Hey @${{ env.AUTHOR }}, the backend checks (typecheck/build/tests) are failing for '$PR_TITLE'. Please run \`npm run typecheck\`, \`npm run build\` and \`npm test\` in \`backend/\` locally and fix the issues before pushing again."
+          exit 1
+
       - name: ❌ Handle Contract Review Failure
         if: steps.fmt_review.outcome == 'failure' || steps.clippy_review.outcome == 'failure' || steps.contract_review.outcome == 'failure'
         run: |
@@ -249,7 +271,7 @@ jobs:
       # ── AI code review ───────────────────────────────────────────────────
       - name: 🤖 AI Code Review (Claude)
         id: ai_review
-        if: env.SKIP_REVIEW != 'true' && steps.build_review.outcome == 'success' && steps.lint_review.outcome == 'success' && steps.fmt_review.outcome == 'success' && steps.clippy_review.outcome == 'success' && steps.contract_review.outcome == 'success'
+        if: env.SKIP_REVIEW != 'true' && steps.build_review.outcome == 'success' && steps.lint_review.outcome == 'success' && steps.backend_review.outcome == 'success' && steps.fmt_review.outcome == 'success' && steps.clippy_review.outcome == 'success' && steps.contract_review.outcome == 'success'
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
         run: |
@@ -316,7 +338,7 @@ jobs:
           const diffStats = process.env.DIFF_STATS;
           const diffLines = process.env.DIFF_LINES;
 
-          const prompt = `You are a critical senior full-stack engineer for a Stellar/Soroban AgTech dApp: Next.js, React, TypeScript (frontend) AND Rust Soroban smart contracts (backend), AND a QA reviewer performing a final merge audit on a Pull Request. Your standard is high: nothing ships unless it provably satisfies the issue, is accessible, is safe, and is covered by tests.
+          const prompt = `You are a critical senior full-stack engineer for a Stellar/Soroban AgTech dApp: Next.js, React, TypeScript (frontend), a Node.js/Fastify TypeScript backend (scoring + on-chain relay), AND Rust Soroban smart contracts, AND a QA reviewer performing a final merge audit on a Pull Request. Your standard is high: nothing ships unless it provably satisfies the issue, is accessible, is safe, and is covered by tests.
 
           LINKED ISSUE DESCRIPTION:
           ${issue}
@@ -338,9 +360,10 @@ jobs:
           3. The code is correct: no obvious bugs, edge cases handled (loading, error, empty states), no scope creep beyond the issue, no dead code, TODOs, hacks, or placeholder logic.
           4. Type safety: no TypeScript \`any\` leaking across props/state boundaries, no broken imports, no client/server boundary mistakes.
           5. Soroban contract correctness: authorization always via require_auth before state changes, correct persistent vs instance storage usage, no panics in hot paths that bypass validation, integer/overflow safety (i128 for amounts), and consistency with the VYC lifecycle (Active -> Redeemed/Expired/Cancelled).
-          6. No security concerns: no secrets in the diff, no unsafe use of user input, no missing authz, no XSS/CSP issues.
-          7. Accessibility for the frontend: interactive elements reachable/operable, no obvious a11y regressions.
-          8. The change does not break existing functionality (review the whole diff, not just added lines) — including existing AgriTrust VYC flow and Soroban RPC handling.
+          6. Backend service correctness: the scoring engine is deterministic and bounded 0-100, admin-only on-chain writes are gated (never triggered from the browser), the ADMIN_SECRET_KEY never leaks to the frontend or into the repo, activity hashes are verified (64-char hex SHA-256), and on-chain reads degrade gracefully with clear errors.
+          7. No security concerns: no secrets in the diff, no unsafe use of user input, no missing authz, no XSS/CSP issues.
+          8. Accessibility for the frontend: interactive elements reachable/operable, no obvious a11y regressions.
+          9. The change does not break existing functionality (review the whole diff, not just added lines) — including existing AgriTrust VYC flow and Soroban RPC handling.
 
           FAIL automatically if: any criterion above fails; the PR is very large (more than 20 files or 1500 diff lines) unless clearly justified; you have any blocking architectural/security question; tests are missing for the changed logic.
 
@@ -428,7 +451,7 @@ jobs:
           exit 1
 
       - name: ✅ Handle Review Success (Approve & Merge)
-        if: env.AI_RESULT == 'PASS' && steps.build_review.outcome == 'success' && steps.lint_review.outcome == 'success' && steps.fmt_review.outcome == 'success' && steps.clippy_review.outcome == 'success' && steps.contract_review.outcome == 'success'
+        if: env.AI_RESULT == 'PASS' && steps.build_review.outcome == 'success' && steps.lint_review.outcome == 'success' && steps.backend_review.outcome == 'success' && steps.fmt_review.outcome == 'success' && steps.clippy_review.outcome == 'success' && steps.contract_review.outcome == 'success'
         run: |
           PR_TITLE=$(gh pr view $PR_NUMBER --json title -q .title)
           OWNER="${{ github.repository_owner }}"
