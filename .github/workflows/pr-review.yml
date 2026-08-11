@@ -1,0 +1,464 @@
+name: AgriTrust Protocol Liaison (PR Reviewer)
+
+on:
+  pull_request_target:
+    types: [opened, synchronize, reopened, edited]
+  issue_comment:
+    types: [created]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.event.issue.number }}
+
+permissions:
+  contents: write
+  pull-requests: write
+
+env:
+  # Model in ONE place — used for both the log line and the API call so they cannot drift.
+  AI_MODEL: "${{ secrets.AI_MODEL != '' && secrets.AI_MODEL || 'claude-sonnet-4-6' }}"
+
+jobs:
+  audit:
+    name: Institutional PR Audit
+    if: (github.event_name == 'pull_request_target' || (github.event_name == 'issue_comment' && github.event.issue.pull_request != null)) && github.actor != 'bbkenny' && !contains(github.actor, 'bot')
+    runs-on: ubuntu-latest
+    env:
+      GITHUB_TOKEN: ${{ secrets.MAINTAINER_TOKEN != '' && secrets.MAINTAINER_TOKEN || secrets.GITHUB_TOKEN }}
+      PR_NUMBER: ${{ github.event_name == 'pull_request_target' && github.event.pull_request.number || github.event.issue.number }}
+      AUTHOR: ${{ github.event_name == 'pull_request_target' && github.event.pull_request.user.login || github.event.comment.user.login }}
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'pull_request_target' && github.event.pull_request.head.sha || github.ref }}
+          # Required for pull_request_target: GitHub refuses to check out fork
+          # PR code in the trusted base-repo context unless this is set. Only
+          # fork code is ever built here (never workflow YAML from the PR), and
+          # the Workflow Tampering gate above closes .github/ changes from
+          # non-collaborators before any code execution.
+          allow-unsafe-pr-checkout: true
+
+      - name: ❌ Check for Workflow Tampering
+        run: |
+          AUTHOR_ROLE=$(gh api repos/${{ github.repository }}/pulls/$PR_NUMBER -q .author_association)
+          if [[ "$AUTHOR_ROLE" != "OWNER" && "$AUTHOR_ROLE" != "MEMBER" && "$AUTHOR_ROLE" != "COLLABORATOR" ]]; then
+            CHANGED_FILES=$(gh pr view $PR_NUMBER --json files -q '.files[].path')
+            if echo "$CHANGED_FILES" | grep -q "^.github/"; then
+              gh pr comment $PR_NUMBER --body "🚨 **SECURITY ALERT**: External contributors are not permitted to modify files in the \`.github/\` directory. Please revert these changes to proceed."
+              gh pr close $PR_NUMBER
+              exit 1
+            fi
+            if echo "$CHANGED_FILES" | grep -q "^\.gitignore"; then
+              gh pr comment $PR_NUMBER --body "🚨 **SECURITY ALERT**: External contributors are not permitted to modify \`.gitignore\` to prevent accidental exposure of environment/deployment secrets. Please revert these changes to proceed."
+              gh pr close $PR_NUMBER
+              exit 1
+            fi
+          fi
+
+      - name: 🔍 Check for Issue Link
+        run: |
+          PR_BODY=$(gh pr view $PR_NUMBER --json body -q .body)
+          if ! echo "$PR_BODY" | grep -Eiq "(close|closes|closed|fix|fixes|fixed|resolve|resolves|resolved) #[0-9]+"; then
+            RESPONSES=(
+              "hey @${{ env.AUTHOR }}! i noticed you didn't link an issue in your PR description. please add \`Closes #ISSUE_NUMBER\` so we can close it when merged!"
+              "Thanks for the PR @${{ env.AUTHOR }}! Could you please link the issue it resolves using \`Closes #ISSUE_NUMBER\` in the description? It helps us track things better."
+              "Hey @${{ env.AUTHOR }}, looks like the PR description is missing an issue link. Just drop a \`Closes #123\` in there so we can link them up!"
+              "Awesome start @${{ env.AUTHOR }}, but could you add a closing keyword like \`Closes #ISSUE\` to the PR body? That way GitHub will close the issue for us."
+              "I'd love to review this @${{ env.AUTHOR }}, but we need an issue linked first! Please update the description with \`Closes #ISSUE_NUMBER\`."
+              "Hey @${{ env.AUTHOR }}, before we proceed, please link the related issue in the description (e.g., \`Fixes #41\`). Thanks!"
+            )
+            SELECTED=$(shuf -n1 -e "${RESPONSES[@]}")
+            gh pr comment $PR_NUMBER --body "$SELECTED"
+            exit 1
+          fi
+
+      - name: 👥 Assignment Gate (Issue must be assigned to PR author)
+        run: |
+          PR_BODY=$(gh pr view $PR_NUMBER --json body -q .body)
+          ISSUE_NUM=$(echo "$PR_BODY" | grep -oEi "(close|closes|closed|fix|fixes|fixed|resolve|resolves|resolved) #[0-9]+" | head -n1 | grep -oE "[0-9]+")
+
+          if ! gh issue view "$ISSUE_NUM" --json state,title,assignees > /tmp/issue.json 2>/dev/null; then
+            gh pr review $PR_NUMBER --request-changes -b "hey @${{ env.AUTHOR }}, i couldn't find the linked issue #$ISSUE_NUM. please double-check the issue number in the PR description."
+            exit 1
+          fi
+
+          STATE=$(jq -r .state /tmp/issue.json)
+          if [ "$STATE" != "OPEN" ]; then
+            gh pr review $PR_NUMBER --request-changes -b "hey @${{ env.AUTHOR }}, the linked issue #$ISSUE_NUM is \`$STATE\`. please reopen it or link an open issue so we can proceed."
+            exit 1
+          fi
+
+          ASSIGNEES=$(jq -r '[.assignees[].login] | join(",")' /tmp/issue.json)
+          if [ -z "$ASSIGNEES" ]; then
+            gh pr review $PR_NUMBER --request-changes -b "hey @${{ env.AUTHOR }}, issue #$ISSUE_NUM isn't assigned to anyone yet. please get yourself assigned to the issue before submitting work."
+            exit 1
+          fi
+
+          if ! echo ",$ASSIGNEES," | grep -q ",${{ env.AUTHOR }},"; then
+            gh pr review $PR_NUMBER --request-changes -b "hey @${{ env.AUTHOR }}, issue #$ISSUE_NUM is assigned to \`$ASSIGNEES\` but not to you. only the assigned contributor can have work merged for this issue."
+            exit 1
+          fi
+
+          echo "✅ Assignment verified: issue #$ISSUE_NUM is assigned to @${{ env.AUTHOR }}."
+
+      - name: 🚨 Check for Merge Conflicts
+        run: |
+          MERGEABLE=$(gh pr view $PR_NUMBER --json mergeable -q .mergeable)
+          if [ "$MERGEABLE" == "CONFLICTING" ]; then
+            RESPONSES=(
+              "hey @${{ env.AUTHOR }}, it looks like there are merge conflicts with the \`master\` branch. could you pull the latest changes and resolve them so i can run my tests?"
+              "Hi @${{ env.AUTHOR }}! This PR currently has merge conflicts with \`master\`. Please rebase or merge the latest changes so we can proceed with the review."
+              "Looks like some conflicts popped up with the base branch @${{ env.AUTHOR }}! Once you resolve them, the checks will kick off again."
+              "Hey @${{ env.AUTHOR }}, we can't merge this yet because of conflicts with \`master\`. Mind taking a look and fixing them up?"
+              "Merge conflicts detected @${{ env.AUTHOR }}! Please sync your branch with \`master\` and resolve the conflicts so we can get this reviewed."
+              "HI @${{ env.AUTHOR }}, looks like someone else merged changes that conflict with yours. Please resolve the conflicts and push an update!"
+            )
+            SELECTED=$(shuf -n1 -e "${RESPONSES[@]}")
+            gh pr comment $PR_NUMBER --body "$SELECTED"
+            exit 1
+          fi
+
+      - name: 🔑 Token Pre-flight (merge permission check)
+        run: |
+          CAN_PUSH=$(gh api repos/${{ github.repository }} --jq '.permissions.push' 2>/dev/null || echo "false")
+          if [ "$CAN_PUSH" != "true" ]; then
+            echo "❌ MAINTAINER_TOKEN is not set (or lacks push rights). Falling back to GITHUB_TOKEN would block merges."
+            gh pr comment $PR_NUMBER --body "⚠️ **Token misconfiguration**: the automation token (\`MAINTAINER_TOKEN\`) is missing or lacks push permission on this repository, so auto-merge is disabled. Please configure \`MAINTAINER_TOKEN\` in repo/org secrets."
+            exit 1
+          fi
+          echo "✅ Token pre-flight OK: merge permission confirmed."
+
+      - name: 🕓 Already-Reviewed SHA Check (dedupe)
+        run: |
+          HEAD_SHA=$(gh pr view $PR_NUMBER --json headRefOid -q .headRefOid)
+          LAST_REVIEW_SHA=$(gh api "repos/$GITHUB_REPOSITORY/pulls/$PR_NUMBER/reviews" --jq '[.[] | select(.user.login == "bbkenny")] | last | .commit_id // ""' 2>/dev/null || echo "")
+          if [ -n "$LAST_REVIEW_SHA" ] && [ "$LAST_REVIEW_SHA" = "$HEAD_SHA" ]; then
+            echo "🕓 Bot already reviewed head SHA $HEAD_SHA. Skipping re-review (no new commits)."
+            echo "SKIP_REVIEW=true" >> "$GITHUB_ENV"
+          else
+            echo "🕓 Head SHA $HEAD_SHA not reviewed yet. Proceeding with review."
+            echo "SKIP_REVIEW=false" >> "$GITHUB_ENV"
+          fi
+
+      # ── Frontend checks ──────────────────────────────────────────────────
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+          cache-dependency-path: 'frontend/package-lock.json'
+
+      - name: Install Frontend Dependencies
+        run: |
+          cd frontend
+          npm ci --legacy-peer-deps
+
+      - name: Lint (ESLint)
+        id: lint_review
+        continue-on-error: true
+        run: |
+          cd frontend
+          if [ -f eslint.config.mjs ] || [ -f .eslintrc.json ] || [ -f .eslintrc.js ] || [ -f .eslintrc ]; then
+            npx eslint .
+          else
+            echo "ESLint not configured. Skipping lint."
+          fi
+
+      - name: Frontend Tests & Build
+        id: build_review
+        continue-on-error: true
+        run: |
+          cd frontend
+          if grep -q '"test"' package.json; then
+            npm test -- --passWithNoTests
+          else
+            echo "No test script found. Skipping tests."
+          fi
+          npm run build
+
+      # ── Smart contract checks ────────────────────────────────────────────
+      - name: Install Rust (pinned for soroban-sdk 20)
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: 1.85.0
+          targets: wasm32-unknown-unknown
+          components: rustfmt, clippy
+
+      - name: Cache Cargo Dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            smartcontract/target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('smartcontract/Cargo.lock') }}
+
+      - name: Contract Format Check
+        id: fmt_review
+        continue-on-error: true
+        run: |
+          cd smartcontract
+          cargo fmt --check
+
+      - name: Contract Clippy
+        id: clippy_review
+        continue-on-error: true
+        run: |
+          cd smartcontract
+          cargo clippy --all-targets --all-features -- -D warnings -A unexpected_cfgs
+
+      - name: Contract Tests & Build (wasm)
+        id: contract_review
+        continue-on-error: true
+        run: |
+          cd smartcontract
+          cargo test
+          cargo build --target wasm32-unknown-unknown --release
+
+      # ── Failure handling ─────────────────────────────────────────────────
+      - name: ❌ Handle Lint Failure
+        if: steps.lint_review.outcome == 'failure'
+        run: |
+          PR_TITLE=$(gh pr view $PR_NUMBER --json title -q .title)
+          gh pr comment $PR_NUMBER --body "Hey @${{ env.AUTHOR }}, the linter (ESLint) flagged some warnings in '$PR_TITLE'. Please run \`npx eslint .\` locally and fix the issues before pushing again."
+          exit 1
+
+      - name: ❌ Handle Frontend Review Failure
+        if: steps.build_review.outcome == 'failure'
+        run: |
+          PR_TITLE=$(gh pr view $PR_NUMBER --json title -q .title)
+          RESPONSES=(
+            "hey @${{ env.AUTHOR }}, took a look at the PR for '$PR_TITLE'. actually, it looks like the CI checks (tests/build) are failing right now. mind checking the logs and fixing the errors? once it's passing, just push an update and we can get it merged."
+            "Thanks for submitting '$PR_TITLE' @${{ env.AUTHOR }}! Unfortunately, the build or tests are failing right now. Please review the Actions logs to see what went wrong and push a fix."
+            "Hey @${{ env.AUTHOR }}! The build/tests are currently failing for '$PR_TITLE'. Could you take a look at the workflow logs and patch up the errors?"
+            "Looks like there are some failing checks on '$PR_TITLE' @${{ env.AUTHOR }}. Once you get the tests passing, let us know by pushing the fixes!"
+            "We're almost there with '$PR_TITLE' @${{ env.AUTHOR }}, but the CI pipeline is red. Check the logs for details and push an update when you have it fixed!"
+            "Hey @${{ env.AUTHOR }}, the tests didn't pass for '$PR_TITLE'. Mind taking a look at the errors and fixing them up?"
+          )
+          SELECTED=$(shuf -n1 -e "${RESPONSES[@]}")
+          gh pr comment $PR_NUMBER --body "$SELECTED"
+          exit 1
+
+      - name: ❌ Handle Contract Review Failure
+        if: steps.fmt_review.outcome == 'failure' || steps.clippy_review.outcome == 'failure' || steps.contract_review.outcome == 'failure'
+        run: |
+          PR_TITLE=$(gh pr view $PR_NUMBER --json title -q .title)
+          gh pr comment $PR_NUMBER --body "Hey @${{ env.AUTHOR }}, the Soroban contract checks (fmt/clippy/tests/build) are failing for '$PR_TITLE'. Please run \`cargo fmt --check\`, \`cargo clippy --all-targets --all-features -- -D warnings -A unexpected_cfgs\`, \`cargo test\` and \`cargo build --target wasm32-unknown-unknown --release\` locally and fix the issues before pushing again."
+          exit 1
+
+      # ── AI code review ───────────────────────────────────────────────────
+      - name: 🤖 AI Code Review (Claude)
+        id: ai_review
+        if: env.SKIP_REVIEW != 'true' && steps.build_review.outcome == 'success' && steps.lint_review.outcome == 'success' && steps.fmt_review.outcome == 'success' && steps.clippy_review.outcome == 'success' && steps.contract_review.outcome == 'success'
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          echo "═══════════════════════════════════════════"
+          echo "🤖 AI REVIEW: Starting Claude Code Review"
+          echo "═══════════════════════════════════════════"
+
+          echo "🛑 DEBOUNCE CHECK: Preventing Double Spam"
+          if [ "${{ github.event_name }}" == "issue_comment" ]; then
+            LAST_BOT_COMMENT_TIME=$(gh pr view $PR_NUMBER --json comments -q '.comments | map(select(.author.login == "bbkenny")) | last | .createdAt' 2>/dev/null || echo "")
+            if [ "$LAST_BOT_COMMENT_TIME" != "null" ] && [ -n "$LAST_BOT_COMMENT_TIME" ]; then
+              NOW=$(date +%s)
+              LAST_TIME=$(date -d "$LAST_BOT_COMMENT_TIME" +%s)
+              DIFF=$((NOW - LAST_TIME))
+              if [ "$DIFF" -lt 300 ]; then
+                echo "✅ Bot just commented $DIFF seconds ago. Skipping AI review for this issue_comment to prevent double-spam!"
+                echo "AI_RESULT=SKIP" >> "$GITHUB_ENV"
+                exit 0
+              fi
+            fi
+          fi
+
+          if [ -z "$ANTHROPIC_API_KEY" ]; then
+            echo "⚠️ No ANTHROPIC_API_KEY found — AI review unavailable."
+            gh pr comment $PR_NUMBER --body "Code review couldn't be run right now (API key not configured). Please review this PR manually."
+            echo "AI_RESULT=SKIP" >> "$GITHUB_ENV"
+            exit 0
+          fi
+          echo "✅ ANTHROPIC_API_KEY is set (length: ${#ANTHROPIC_API_KEY} chars)"
+          echo "✅ AI model: ${{ env.AI_MODEL }}"
+
+          PR_BODY=$(gh pr view $PR_NUMBER --json body -q .body)
+          ISSUE_NUMBER=$(echo "$PR_BODY" | grep -oEi "(close|closes|closed|fix|fixes|fixed|resolve|resolves|resolved) #[0-9]+" | head -n1 | grep -oE "[0-9]+")
+
+          echo "📋 Linked Issue: #$ISSUE_NUMBER"
+          echo "📎 PR Number: #$PR_NUMBER"
+
+          ISSUE_BODY=$(gh issue view $ISSUE_NUMBER --json body -q .body)
+          PR_DIFF=$(gh pr diff $PR_NUMBER)
+          PR_COMMENTS=$(gh pr view $PR_NUMBER --json comments --jq '[.comments[].body] | join("\n\n---\n\n")')
+          DIFF_STATS=$(gh pr diff $PR_NUMBER --name-only | wc -l)
+          DIFF_LINES=$(gh pr diff $PR_NUMBER | wc -l)
+
+          echo "$ISSUE_BODY" > issue.txt
+          echo "$PR_DIFF" > diff.txt
+          echo "$PR_BODY" > pr_body.txt
+          echo "$PR_COMMENTS" > pr_comments.txt
+          echo "📏 Issue body: $(wc -c < issue.txt) bytes"
+          echo "📏 PR diff: $(wc -c < diff.txt) bytes"
+          echo "📏 Files changed: $DIFF_STATS, diff lines: $DIFF_LINES"
+
+          cat << 'EOF' > ai_review.js
+          const fs = require('fs');
+          const { execSync } = require('child_process');
+
+          const issue = fs.readFileSync('issue.txt', 'utf8');
+          const diff = fs.readFileSync('diff.txt', 'utf8');
+          const prBody = fs.existsSync('pr_body.txt') ? fs.readFileSync('pr_body.txt', 'utf8') : '';
+          const prComments = fs.existsSync('pr_comments.txt') ? fs.readFileSync('pr_comments.txt', 'utf8') : '';
+          const prNumber = process.env.PR_NUMBER;
+          const apiKey = process.env.ANTHROPIC_API_KEY;
+          const author = process.env.AUTHOR;
+          const model = process.env.AI_MODEL || 'claude-sonnet-4-6';
+          const diffStats = process.env.DIFF_STATS;
+          const diffLines = process.env.DIFF_LINES;
+
+          const prompt = `You are a critical senior full-stack engineer for a Stellar/Soroban AgTech dApp: Next.js, React, TypeScript (frontend) AND Rust Soroban smart contracts (backend), AND a QA reviewer performing a final merge audit on a Pull Request. Your standard is high: nothing ships unless it provably satisfies the issue, is accessible, is safe, and is covered by tests.
+
+          LINKED ISSUE DESCRIPTION:
+          ${issue}
+
+          PULL REQUEST DESCRIPTION:
+          ${prBody}
+
+          PULL REQUEST COMMENTS:
+          ${prComments}
+
+          PULL REQUEST DIFF:
+          ${diff}
+
+          SCOPE STATS: ${diffStats} files changed, ${diffLines} diff lines.
+
+          NON-NEGOTIABLE PASS CRITERIA (all must hold):
+          1. The diff genuinely and completely implements every explicit requirement in the issue. Verify against the diff itself, never trust the PR description or comments.
+          2. Tests are added or updated for the change (Rust #[test] for Soroban contracts, Jest/vitest for the frontend), and they meaningfully exercise the new logic. Missing/inadequate tests is an automatic FAIL.
+          3. The code is correct: no obvious bugs, edge cases handled (loading, error, empty states), no scope creep beyond the issue, no dead code, TODOs, hacks, or placeholder logic.
+          4. Type safety: no TypeScript \`any\` leaking across props/state boundaries, no broken imports, no client/server boundary mistakes.
+          5. Soroban contract correctness: authorization always via require_auth before state changes, correct persistent vs instance storage usage, no panics in hot paths that bypass validation, integer/overflow safety (i128 for amounts), and consistency with the VYC lifecycle (Active -> Redeemed/Expired/Cancelled).
+          6. No security concerns: no secrets in the diff, no unsafe use of user input, no missing authz, no XSS/CSP issues.
+          7. Accessibility for the frontend: interactive elements reachable/operable, no obvious a11y regressions.
+          8. The change does not break existing functionality (review the whole diff, not just added lines) — including existing AgriTrust VYC flow and Soroban RPC handling.
+
+          FAIL automatically if: any criterion above fails; the PR is very large (more than 20 files or 1500 diff lines) unless clearly justified; you have any blocking architectural/security question; tests are missing for the changed logic.
+
+          After the first line, write the review comment.
+          - If PASS: write a short, friendly, human approval comment that references SPECIFIC code you verified in the diff (component names, Rust function names, file paths, behaviors you checked). Vary the opening sentence - never start with the same phrase twice. Never say "PASS". Never mention you are an AI or automated.
+          - If FAIL: write a polite, specific, constructive explanation of exactly what is wrong and what must be fixed. Reference the specific code. Be direct.
+
+          WRITING STYLE (act as the human core maintainer):
+          - Start your comment by tagging the contributor: @${author}.
+          - Conversational, casual tone like a real dev typing a quick GitHub comment. Use natural fillers occasionally (honestly, actually, just, I think, kinda, looks like, tbh).
+          - Never use emojis, markdown headers, bullet lists, or em dashes.
+          - Keep it under 150 words.
+          - Vary your opening every single time. A good mix of conversational openers is fine, but never repeat the exact same first sentence.`;
+
+          async function run() {
+            try {
+              console.log('🌐 Calling Anthropic API (model: ' + model + ')...');
+              const res = await fetch('https://api.anthropic.com/v1/messages', {
+                method: 'POST',
+                headers: {
+                  'content-type': 'application/json',
+                  'x-api-key': apiKey,
+                  'anthropic-version': '2023-06-01'
+                },
+                body: JSON.stringify({
+                  model: model,
+                  max_tokens: 1500,
+                  messages: [{role: 'user', content: prompt}]
+                })
+              });
+
+              if (!res.ok) {
+                const errorBody = await res.text();
+                console.error('❌ AI API failed with status ' + res.status);
+                console.error('   Response: ' + errorBody);
+                console.log('⚠️ Falling back to non-AI review flow.');
+                process.exit(0);
+              }
+
+              const data = await res.json();
+              console.log('✅ API responded successfully (usage: ' + (data.usage?.input_tokens ?? 0) + ' in / ' + (data.usage?.output_tokens ?? 0) + ' out tokens)');
+              const responseText = data.content[0].text.trim();
+
+              if (responseText.startsWith('PASS')) {
+                console.log('🎉 AI Review Result: PASS');
+                const approvalMsg = responseText.replace(/^PASS\s*/i, '').trim();
+                if (approvalMsg) {
+                  console.log('   AI comment: "' + approvalMsg.substring(0, 100) + '..."');
+                  fs.writeFileSync('ai_approval.txt', approvalMsg);
+                }
+                process.exit(0);
+              } else {
+                console.log('🚫 AI Review Result: FAIL');
+                const feedback = responseText.replace(/^FAIL\s*/i, '').trim();
+                console.log('   AI feedback: "' + feedback.substring(0, 100) + '..."');
+                fs.writeFileSync('feedback.txt', '**Review against issue body failed**\n\n' + feedback);
+                process.exit(0);
+              }
+            } catch (err) {
+              console.error('❌ AI Review encountered an unexpected error:');
+              console.error('   Error: ' + err.message);
+              console.log('⚠️ Falling back to non-AI review flow.');
+              process.exit(0);
+            }
+          }
+
+          run();
+          EOF
+
+          node ai_review.js
+          echo "AI_EXIT=$?" >> "$GITHUB_ENV"
+
+          if [ -f ai_approval.txt ]; then
+            echo "AI_RESULT=PASS" >> "$GITHUB_ENV"
+          elif [ -f feedback.txt ]; then
+            echo "AI_RESULT=FAIL" >> "$GITHUB_ENV"
+          else
+            echo "AI_RESULT=SKIP" >> "$GITHUB_ENV"
+          fi
+
+      - name: ❌ Post AI Feedback & Request Changes
+        if: env.AI_RESULT == 'FAIL'
+        run: |
+          gh pr review $PR_NUMBER --request-changes --body-file feedback.txt
+          exit 1
+
+      - name: ✅ Handle Review Success (Approve & Merge)
+        if: env.AI_RESULT == 'PASS' && steps.build_review.outcome == 'success' && steps.lint_review.outcome == 'success' && steps.fmt_review.outcome == 'success' && steps.clippy_review.outcome == 'success' && steps.contract_review.outcome == 'success'
+        run: |
+          PR_TITLE=$(gh pr view $PR_NUMBER --json title -q .title)
+          OWNER="${{ github.repository_owner }}"
+          REPO="${{ github.event.repository.name }}"
+
+          SELECTED_RESPONSE=$(cat ai_approval.txt)
+          echo "🤖 Using AI-generated approval comment."
+
+          gh pr review "$PR_NUMBER" --approve -b "$SELECTED_RESPONSE"
+
+          allowed=$(gh api repos/"$OWNER"/"$REPO" -q '.allow_auto_merge' 2>/dev/null || echo "false")
+          if [ "$allowed" = "true" ]; then
+            echo "Auto-merge is allowed; attempting auto-merge for PR #${PR_NUMBER}..."
+            if gh pr merge "$PR_NUMBER" --auto --merge; then
+              echo "Auto-merge enabled for PR #${PR_NUMBER}."
+            else
+              echo "Auto-merge request failed; attempting direct merge..."
+              gh pr merge "$PR_NUMBER" --merge || \
+                gh pr comment "$PR_NUMBER" --body "Review passed and PR approved. Auto-merge could not be enabled automatically — please merge manually when ready."
+            fi
+          else
+            echo "Auto-merge disabled for $OWNER/$REPO; attempting direct merge..."
+            if gh pr merge "$PR_NUMBER" --merge; then
+              echo "PR #${PR_NUMBER} merged directly."
+            else
+              gh pr comment "$PR_NUMBER" --body "Review passed and PR approved. Auto-merge is disabled for this repository — please merge manually when ready."
+            fi
+          fi
+
+      - name: 💬 AI Review Unavailable Notice
+        if: env.AI_RESULT == 'SKIP' && env.SKIP_REVIEW != 'true'
+        run: |
+          echo "AI review skipped (already noticed via comment). PR left for manual review — no auto-merge."
