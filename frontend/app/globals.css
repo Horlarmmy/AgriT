@@ -1,23 +1,55 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss";
 
-@layer base {
-  :root {
-    --background: 0 0% 100%;
-    --foreground: 222.2 84% 4.9%;
-    --primary: 221.2 83.2% 53.3%;
-    --primary-foreground: 210 40% 98%;
-  }
+@custom-variant dark (&:is(.dark *));
 
-  .dark {
-    --background: 222.2 84% 4.9%;
-    --foreground: 210 40% 98%;
-    --primary: 217.2 91.2% 59.8%;
-    --primary-foreground: 222.2 47.4% 11.2%;
-  }
+:root {
+  --background: 0 0% 100%;
+  --foreground: 158 42% 8%;
+  --card: 0 0% 100%;
+  --card-foreground: 158 42% 8%;
+  --muted: 156 22% 94%;
+  --muted-foreground: 155 10% 38%;
+  --border: 155 18% 86%;
+  --ring: 156 68% 34%;
+  --primary: 156 68% 34%;
+  --primary-foreground: 0 0% 100%;
+  --accent: 46 96% 56%;
+  --accent-foreground: 158 42% 8%;
+  --destructive: 0 72% 51%;
+}
+
+.dark {
+  --background: 158 40% 6%;
+  --foreground: 158 22% 94%;
+  --card: 158 38% 9%;
+  --card-foreground: 158 22% 94%;
+  --muted: 158 32% 14%;
+  --muted-foreground: 155 12% 62%;
+  --border: 158 28% 18%;
+  --ring: 156 68% 44%;
+  --primary: 156 62% 46%;
+  --primary-foreground: 0 0% 100%;
+  --accent: 46 96% 56%;
+  --accent-foreground: 158 42% 8%;
+  --destructive: 0 62% 51%;
+}
+
+@theme inline {
+  --color-background: hsl(var(--background));
+  --color-foreground: hsl(var(--foreground));
+  --color-card: hsl(var(--card));
+  --color-card-foreground: hsl(var(--card-foreground));
+  --color-muted: hsl(var(--muted));
+  --color-muted-foreground: hsl(var(--muted-foreground));
+  --color-border: hsl(var(--border));
+  --color-ring: hsl(var(--ring));
+  --color-primary: hsl(var(--primary));
+  --color-primary-foreground: hsl(var(--primary-foreground));
+  --color-accent: hsl(var(--accent));
+  --color-accent-foreground: hsl(var(--accent-foreground));
+  --color-destructive: hsl(var(--destructive));
 }
 
 body {
-  @apply bg-background text-foreground;
+  @apply bg-background text-foreground antialiased;
 }
