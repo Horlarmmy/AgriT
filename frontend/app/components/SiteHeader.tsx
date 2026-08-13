@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Sprout } from "lucide-react";
+import Image from "next/image";
 
 const links = [
   { href: "/", label: "Home" },
@@ -13,9 +13,13 @@ export function SiteHeader() {
     <header className="sticky top-0 z-40 w-full border-b border-border bg-background/80 backdrop-blur">
       <div className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-4 px-4 sm:px-6">
         <Link href="/" className="flex items-center gap-2 font-semibold">
-          <span className="inline-flex h-8 w-8 items-center justify-center rounded-xl bg-primary text-primary-foreground">
-            <Sprout className="h-5 w-5" />
-          </span>
+          <Image
+            src="/agrit-logo.svg"
+            alt="AgriTrust"
+            width={32}
+            height={32}
+            className="h-8 w-8"
+          />
           <span>
             AgriTrust <span className="hidden text-muted-foreground sm:inline text-sm font-normal">· Verifiable Yield Certificates</span>
           </span>

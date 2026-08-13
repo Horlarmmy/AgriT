@@ -12,5 +12,6 @@ yarn-debug.log*
 yarn-error.log*
 .DS_Store
 *.pem
+*.tsbuildinfo
 # Rust build artifacts
 target/
