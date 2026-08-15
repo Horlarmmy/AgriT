@@ -5,7 +5,6 @@ const links = [
   { href: "/", label: "Home" },
   { href: "/dashboard", label: "Farmer Dashboard" },
   { href: "/score", label: "Scoring" },
-  { href: "/admin", label: "VYC Admin" },
 ];
 
 export function SiteHeader() {

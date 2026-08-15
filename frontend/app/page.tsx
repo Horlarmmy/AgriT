@@ -1,4 +1,7 @@
+"use client";
+
 import Link from "next/link";
+import { motion } from "framer-motion";
 import { Leaf, ShieldCheck, Sprout, TrendingUp, Wallet, FileCheck2 } from "lucide-react";
 import { SiteHeader } from "./components/SiteHeader";
 import { SiteFooter } from "./components/SiteFooter";
@@ -8,21 +11,25 @@ const steps = [
     icon: Leaf,
     title: "Farmers log activity",
     body: "Seed purchases, planting seasons, harvests, and sales are recorded through a simple mobile / USSD gateway.",
+    reverse: false,
   },
   {
     icon: ShieldCheck,
     title: "Behavior is scored",
     body: "The AgriTrust engine turns that history into an explainable 0–100 trust score — verified, not guessed.",
+    reverse: true,
   },
   {
     icon: FileCheck2,
     title: "VYCs are minted",
     body: "A Verifiable Yield Certificate is created on-chain, hash-locked to the activity evidence that produced it.",
+    reverse: false,
   },
   {
     icon: TrendingUp,
     title: "Lenders finance the yield",
     body: "Liquidity providers and insurers fund VYCs, unlocking credit for farmers with a track record — not a title deed.",
+    reverse: false,
   },
 ];
 
@@ -77,19 +84,51 @@ export default function Home() {
         </section>
 
         <section className="border-y border-border bg-muted/40">
-          <div className="mx-auto grid max-w-6xl gap-8 px-4 py-16 sm:px-6 md:grid-cols-4">
-            {steps.map((step, i) => (
-              <div key={step.title}>
-                <div className="mb-3 inline-flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 text-primary">
-                  <step.icon className="h-5 w-5" />
+          <div className="mx-auto max-w-6xl px-4 py-16 sm:px-6">
+            <h2 className="text-center text-3xl font-bold">How it works</h2>
+            <p className="mx-auto mt-3 max-w-2xl text-center text-muted-foreground">
+              From field activity to a financed harvest — four steps, each verified on-chain.
+            </p>
+
+            <div className="mt-14 space-y-12 sm:space-y-16">
+              {steps.map((step, i) => (
+                <div
+                  key={step.title}
+                  className="grid items-center gap-8 md:grid-cols-2 md:gap-12"
+                >
+                  {/* Text */}
+                  <motion.div
+                    initial={{ opacity: 0, x: step.reverse ? 48 : -48 }}
+                    whileInView={{ opacity: 1, x: 0 }}
+                    viewport={{ once: true, amount: 0.3 }}
+                    transition={{ duration: 0.5, ease: "easeOut" }}
+                    className={step.reverse ? "md:order-2" : ""}
+                  >
+                    <p className="text-xs font-bold uppercase tracking-widest text-primary">
+                      Step {i + 1}
+                    </p>
+                    <h3 className="mt-2 text-2xl font-bold">{step.title}</h3>
+                    <p className="mt-3 text-muted-foreground">{step.body}</p>
+                  </motion.div>
+
+                  {/* Visual */}
+                  <motion.div
+                    initial={{ opacity: 0, x: step.reverse ? -48 : 48 }}
+                    whileInView={{ opacity: 1, x: 0 }}
+                    viewport={{ once: true, amount: 0.3 }}
+                    transition={{ duration: 0.5, ease: "easeOut", delay: 0.1 }}
+                    className={step.reverse ? "md:order-1" : ""}
+                  >
+                    <div className="relative flex min-h-[240px] items-center justify-center overflow-hidden rounded-3xl border border-border bg-card p-8">
+                      <span className="pointer-events-none absolute right-5 top-3 text-7xl font-black text-foreground/5">
+                        0{i + 1}
+                      </span>
+                      <step.icon className="h-24 w-24 text-primary/70" strokeWidth={1.25} />
+                    </div>
+                  </motion.div>
                 </div>
-                <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                  Step {i + 1}
-                </p>
-                <h3 className="mt-1 font-semibold">{step.title}</h3>
-                <p className="mt-2 text-sm text-muted-foreground">{step.body}</p>
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
         </section>
 
@@ -118,10 +157,10 @@ export default function Home() {
             </p>
             <div className="mt-8 flex flex-wrap items-center justify-center gap-4">
               <Link
-                href="/admin"
+                href="/dashboard"
                 className="inline-flex items-center gap-2 rounded-xl bg-accent px-6 py-3 font-semibold text-accent-foreground transition-opacity hover:opacity-90"
               >
-                Admin: Mint a VYC
+                Explore the Dashboard
               </Link>
             </div>
           </div>

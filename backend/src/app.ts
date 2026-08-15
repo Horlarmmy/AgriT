@@ -43,10 +43,11 @@ export async function buildServer() {
   fastify.setErrorHandler((error, _request, reply) => {
     logger.error({ error }, 'Unhandled error');
 
-    const statusCode = error.statusCode || 500;
+    const err = error as { statusCode?: number; message?: string };
+    const statusCode = err.statusCode || 500;
     reply.code(statusCode).send({
       success: false,
-      error: statusCode === 500 ? 'Internal server error' : error.message,
+      error: statusCode === 500 ? 'Internal server error' : err.message,
     });
   });
 
