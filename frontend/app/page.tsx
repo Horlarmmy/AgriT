@@ -23,7 +23,7 @@ const steps = [
     icon: FileCheck2,
     title: "VYCs are minted",
     body: "A Verifiable Yield Certificate is created on-chain, hash-locked to the activity evidence that produced it.",
-    reverse: false,
+    reverse: true,
   },
   {
     icon: TrendingUp,
