@@ -135,3 +135,123 @@ key-custody service with proper security) so we're not manually managing private
 - [ ] Gas sponsorship mechanism (friendbot on testnet, sponsored ops on mainnet)
 - [ ] KYC provider for lenders (which vendor)
 - [ ] Phone/USSD vs Google-first — which is the primary farmer channel
+
+---
+
+## 7. Concrete API / Route Spec (draft)
+
+> Fastify backend (already Fastify v5). All routes return the standard envelope
+> `{ success: boolean, data?, error? }` used across the existing routes.
+
+### 7.1 Farmer sign-up (custodial smart wallet)
+
+**`POST /auth/farmer/register`**
+
+Request body:
+```json
+{
+  "provider": "google",              // "google" | "phone" | "ussd"
+  "providerSubject": "g-oauth-sub-abc123",  // OAuth sub, or hashed phone number
+  "name": "Adewale Okafor",
+  "region": "NG-OYO",
+  "crop": "MAIZE"
+}
+```
+
+Response (201):
+```json
+{
+  "success": true,
+  "data": {
+    "farmerId": "uuid",
+    "walletAddress": "G...",
+    "isNew": true
+  }
+}
+```
+
+Backend behavior:
+1. Validate `provider` / `providerSubject` (required), `name` (1–100 chars), `region` (ISO 3166-2), `crop` (allowlist).
+2. Look up existing farmer by `(provider, providerSubject)` → if found, return `isNew: false` with existing wallet.
+3. If new: generate ed25519 Stellar keypair, encrypt seed, store `farmers` row, fund account on testnet (friendbot).
+4. **Never return the seed** — only the public wallet address.
+
+### 7.2 Farmer login
+
+**`POST /auth/farmer/login`**
+
+Request:
+```json
+{ "provider": "google", "providerSubject": "g-oauth-sub-abc123" }
+```
+
+Response (200):
+```json
+{
+  "success": true,
+  "data": {
+    "farmerId": "uuid",
+    "walletAddress": "G...",
+    "sessionToken": "jwt..."
+  }
+}
+```
+
+Behavior: look up by `(provider, providerSubject)`. 404 if not registered (client redirects to `/register`).
+
+### 7.3 Get farmer profile
+
+**`GET /farmer/me`** (auth: `Authorization: Bearer <sessionToken>`)
+
+Response (200):
+```json
+{
+  "success": true,
+  "data": {
+    "farmerId": "uuid",
+    "name": "Adewale Okafor",
+    "region": "NG-OYO",
+    "crop": "MAIZE",
+    "walletAddress": "G...",
+    "vycIds": [1, 2]
+  }
+}
+```
+
+### 7.4 Lender onboarding (self-custody + KYC)
+
+**`POST /auth/lender/onboard`**
+
+Request:
+```json
+{ "walletAddress": "G..." }
+```
+
+Response (200):
+```json
+{
+  "success": true,
+  "data": {
+    "lenderId": "uuid",
+    "walletAddress": "G...",
+    "kycStatus": "pending"
+  }
+}
+```
+
+**`POST /auth/lender/kyc`** — submits KYC (provider-specific), sets `kyc_status = pending`.
+**`GET /lender/me`** — returns profile + `kyc_status`.
+
+### 7.5 Error shape (consistent)
+
+```json
+{ "success": false, "error": "region must be a valid ISO 3166-2 code." }
+```
+- 400 validation, 401 unauth, 404 not found, 409 duplicate, 502 upstream.
+
+### 7.6 TODO before implementing
+
+- [ ] Session/JWT signing strategy (expiry, refresh)
+- [ ] Key encryption approach (AES-256-GCM with a KMS-wrapped key)
+- [ ] friendbot rate limits on testnet — batch/queue account funding
+- [ ] Validate `providerSubject` is not raw PII on the wire (hash phone before storing)
