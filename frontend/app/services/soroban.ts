@@ -126,13 +126,19 @@ export async function mintVyc(params: MintVycParams): Promise<MintResult> {
     }
 
     // Build the transaction parameters
+    // Convert expectedYield string to BigInt for i128 type
+    const yieldBigInt = BigInt(expectedYield);
+
+    // Soroban symbols cannot contain hyphens, convert to underscores
+    const regionSymbol = region.replace(/-/g, "_");
+
     const contractParams = [
       new Address(adminAddress).toScVal(), // admin
       new Address(farmerAddress).toScVal(), // farmer
       nativeToScVal(score, { type: "u32" }), // score
-      nativeToScVal(expectedYield, { type: "i128" }), // expected_yield
+      nativeToScVal(yieldBigInt, { type: "i128" }), // expected_yield
       nativeToScVal(crop, { type: "symbol" }), // crop
-      nativeToScVal(region, { type: "symbol" }), // region
+      nativeToScVal(regionSymbol, { type: "symbol" }), // region
       nativeToScVal(activityHash, { type: "string" }), // activity_hash
     ];
 
