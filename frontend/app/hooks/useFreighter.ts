@@ -72,9 +72,9 @@ export function useFreighter(): UseFreighterReturn {
 
       setAddress(publicKey);
       setIsConnectedState(true);
-    } catch (err: any) {
+    } catch (err) {
       console.error("Error connecting to Freighter:", err);
-      setError(err?.message || "Failed to connect to wallet. Please try again.");
+      setError(err instanceof Error ? err.message : "Failed to connect to wallet. Please try again.");
     } finally {
       setIsLoading(false);
     }

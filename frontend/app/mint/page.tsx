@@ -95,10 +95,10 @@ export default function MintPage() {
           activityHash: "",
         });
       }
-    } catch (error: any) {
+    } catch (error) {
       setMintResult({
         success: false,
-        error: error?.message || "An unexpected error occurred",
+        error: error instanceof Error ? error.message : "An unexpected error occurred",
       });
     } finally {
       setIsSubmitting(false);

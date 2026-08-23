@@ -13,7 +13,7 @@ import { getFarmerVycs, getVyc, VycRecord as SorobanVycRecord } from "../service
 
 export default function Dashboard() {
   const { address, isConnected, connect } = useFreighter();
-  const [vycs, setVycs] = useState<any[]>(MOCK_VYCS);
+  const [vycs, setVycs] = useState<typeof MOCK_VYCS>(MOCK_VYCS);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -63,9 +63,9 @@ export default function Dashboard() {
           });
 
         setVycs(fetchedVycs.length > 0 ? fetchedVycs : MOCK_VYCS);
-      } catch (err: any) {
+      } catch (err) {
         console.error("Error fetching VYCs:", err);
-        setError(err?.message || "Failed to load certificates");
+        setError(err instanceof Error ? err.message : "Failed to load certificates");
         // Fallback to mock data on error
         setVycs(MOCK_VYCS);
       } finally {

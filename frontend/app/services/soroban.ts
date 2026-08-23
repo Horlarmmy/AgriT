@@ -75,7 +75,7 @@ async function buildTransaction(
   contractId: string,
   method: string,
   params: xdr.ScVal[]
-): Promise<any> {
+): Promise<ReturnType<rpc.Server["prepareTransaction"]>> {
   const server = getSorobanServer();
   const sourceAccount = await server.getAccount(publicKey);
 
@@ -160,7 +160,7 @@ export async function mintVyc(params: MintVycParams): Promise<MintResult> {
     const server = getSorobanServer();
     const tx = TransactionBuilder.fromXDR(signedXdr, SOROBAN_CONFIG.NETWORK_PASSPHRASE);
 
-    let sendResponse = await server.sendTransaction(tx);
+    const sendResponse = await server.sendTransaction(tx);
 
     // Poll for the result
     if (sendResponse.status === "PENDING") {
@@ -198,11 +198,11 @@ export async function mintVyc(params: MintVycParams): Promise<MintResult> {
       success: false,
       error: "Transaction submission failed",
     };
-  } catch (error: any) {
+  } catch (error) {
     console.error("Error minting VYC:", error);
     return {
       success: false,
-      error: error?.message || "Failed to mint VYC. Please try again.",
+      error: error instanceof Error ? error.message : "Failed to mint VYC. Please try again.",
     };
   }
 }
@@ -241,7 +241,7 @@ export async function getVyc(vycId: string): Promise<QueryResult> {
       const vycData = scValToNative(resultVal);
 
       // Map status enum
-      const statusMap: any = {
+      const statusMap: Record<number, "Active" | "Redeemed" | "Expired" | "Cancelled"> = {
         0: "Active",
         1: "Redeemed",
         2: "Expired",
@@ -265,11 +265,11 @@ export async function getVyc(vycId: string): Promise<QueryResult> {
     }
 
     return { success: false, error: "Failed to query VYC" };
-  } catch (error: any) {
+  } catch (error) {
     console.error("Error querying VYC:", error);
     return {
       success: false,
-      error: error?.message || "Failed to query VYC",
+      error: error instanceof Error ? error.message : "Failed to query VYC",
     };
   }
 }
