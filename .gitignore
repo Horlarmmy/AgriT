@@ -15,3 +15,6 @@ yarn-error.log*
 *.tsbuildinfo
 # Rust build artifacts
 target/
+
+# Soroban test snapshots — local-only artifacts (see TEST_SNAPSHOTS policy)
+test_snapshots/
