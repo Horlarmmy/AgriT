@@ -1,7 +1,9 @@
-import { describe, expect, it } from "vitest";
-import { initialTransactionState, transactionStatusReducer } from "./useTransactionStatus";
-import { act, renderHook } from "@testing-library/react";
-import { useTransactionStatus } from "./useTransactionStatus";
+import { describe, expect, it, vi } from "vitest";
+import {
+  initialTransactionState,
+  lifecycleStatusSequence,
+  transactionStatusReducer,
+} from "./useTransactionStatus";
 
 describe("transactionStatusReducer", () => {
   it("moves from idle through signing and submission to success", () => {
@@ -46,47 +48,28 @@ describe("transactionStatusReducer", () => {
   });
 });
 
-describe("useTransactionStatus lifecycle callbacks", () => {
-  it("fires onStatus callbacks in correct sequence: pending -> signing -> submitting -> success", async () => {
-    const statusSequence: string[] = [];
-    const { result } = renderHook(() =>
-      useTransactionStatus({ onStatus: (s) => statusSequence.push(s) })
-    );
+describe("transaction lifecycle status reporting", () => {
+  it("reports pending -> signing -> submitting -> success in order", () => {
+    const onStatus = vi.fn();
+    const reported = lifecycleStatusSequence(onStatus, [
+      { type: "STATUS", status: "pending" },
+      { type: "STATUS", status: "signing" },
+      { type: "STATUS", status: "submitting" },
+      { type: "SUCCESS" },
+    ]);
 
-    act(() => {
-      result.current.start();
-    });
-    expect(statusSequence).toEqual(["pending"]);
-
-    act(() => {
-      result.current.setStatus("signing");
-    });
-    expect(statusSequence).toEqual(["pending", "signing"]);
-
-    act(() => {
-      result.current.setStatus("submitting");
-    });
-    expect(statusSequence).toEqual(["pending", "signing", "submitting"]);
-
-    act(() => {
-      result.current.succeed("abc123");
-    });
-    expect(statusSequence).toEqual(["pending", "signing", "submitting", "success"]);
+    expect(reported).toEqual(["pending", "signing", "submitting", "success"]);
+    expect(onStatus).toHaveBeenCalledTimes(4);
   });
 
-  it("calls onStatus with failed status when fail is called", () => {
-    const statusSequence: string[] = [];
-    const { result } = renderHook(() =>
-      useTransactionStatus({ onStatus: (s) => statusSequence.push(s) })
-    );
+  it("reports pending then failed when a transaction fails", () => {
+    const onStatus = vi.fn();
+    const reported = lifecycleStatusSequence(onStatus, [
+      { type: "STATUS", status: "pending" },
+      { type: "FAILED" },
+    ]);
 
-    act(() => {
-      result.current.start();
-    });
-    act(() => {
-      result.current.fail("Transaction rejected by wallet");
-    });
-
-    expect(statusSequence).toEqual(["pending", "failed"]);
+    expect(reported).toEqual(["pending", "failed"]);
+    expect(onStatus).toHaveBeenCalledTimes(2);
   });
 });

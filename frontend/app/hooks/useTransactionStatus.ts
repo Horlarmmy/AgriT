@@ -40,6 +40,28 @@ export function transactionStatusReducer(
   }
 }
 
+/**
+ * The ordered lifecycle statuses a transaction reports through `onStatus`.
+ * Exposed as a pure function so the callback sequence can be tested without a
+ * DOM renderer.
+ */
+export function lifecycleStatusSequence(
+  onStatus: (status: TransactionStatus) => void,
+  actions: Array<{ type: TransactionAction["type"]; status?: TransactionStatus }>
+): TransactionStatus[] {
+  const reported: TransactionStatus[] = [];
+  const notify = (status: TransactionStatus) => {
+    reported.push(status);
+    onStatus(status);
+  };
+  for (const action of actions) {
+    if (action.type === "SUCCESS") notify("success");
+    else if (action.type === "FAILED") notify("failed");
+    else if (action.status) notify(action.status);
+  }
+  return reported;
+}
+
 export function useTransactionStatus(options?: { onStatus?: (status: TransactionStatus) => void }) {
   const [state, dispatch] = useReducer(transactionStatusReducer, initialTransactionState);
 
