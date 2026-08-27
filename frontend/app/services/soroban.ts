@@ -69,6 +69,10 @@ function getTransactionError(error: unknown): string {
     return "Insufficient balance to submit this transaction. Fund your wallet and try again.";
   }
 
+  if (normalizedMessage.includes("timeout")) {
+    return "Request timed out. Please try again.";
+  }
+
   return message || "Unable to mint the certificate. Please try again.";
 }
 

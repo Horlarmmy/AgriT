@@ -40,17 +40,25 @@ export function transactionStatusReducer(
   }
 }
 
-export function useTransactionStatus() {
+export function useTransactionStatus(options?: { onStatus?: (status: TransactionStatus) => void }) {
   const [state, dispatch] = useReducer(transactionStatusReducer, initialTransactionState);
+
+  const dispatchWithCallback = (
+    action: TransactionAction,
+    status?: TransactionStatus
+  ) => {
+    dispatch(action);
+    if (status) options?.onStatus?.(status);
+  };
 
   return {
     ...state,
     isInProgress: ["pending", "signing", "submitting"].includes(state.status),
-    start: () => dispatch({ type: "STATUS", status: "pending" }),
+    start: () => dispatchWithCallback({ type: "STATUS", status: "pending" }, "pending"),
     setStatus: (status: Exclude<TransactionStatus, "idle" | "success" | "failed">) =>
-      dispatch({ type: "STATUS", status }),
-    succeed: (txHash: string) => dispatch({ type: "SUCCESS", txHash }),
-    fail: (error: string) => dispatch({ type: "FAILED", error }),
+      dispatchWithCallback({ type: "STATUS", status }, status),
+    succeed: (txHash: string) => dispatchWithCallback({ type: "SUCCESS", txHash }, "success"),
+    fail: (error: string) => dispatchWithCallback({ type: "FAILED", error }, "failed"),
     reset: () => dispatch({ type: "RESET" }),
   };
 }
