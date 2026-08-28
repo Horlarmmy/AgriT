@@ -3,7 +3,7 @@ import { StatusBadge } from "../components/ui/Badges";
 import { SiteHeader } from "../components/SiteHeader";
 import { SiteFooter } from "../components/SiteFooter";
 import { MOCK_VYCS, formatDate, formatYield, shortAddress } from "../lib/mock";
-import { Reveal, FloatingImage } from "../components/motion/Reveal";
+import { Reveal, StaggerReveal, FloatingImage } from "../components/motion/Reveal";
 
 const crops = ["MAIZE", "COCOA", "SOYBEAN", "RICE", "CASSAVA"];
 const statuses = ["Active", "Redeemed", "Expired", "Cancelled"];
@@ -41,6 +41,50 @@ export default function Admin() {
                   for now — it wires to <code className="rounded bg-muted px-1.5 py-0.5 text-xs">POST /admin/vyc/mint</code> in the next release.
                 </p>
               </div>
+            </div>
+          </Reveal>
+
+          {/* Overview stats */}
+          <StaggerReveal className="mb-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            <Card>
+              <p className="text-sm text-muted-foreground">Total VYCs</p>
+              <p className="mt-1 text-3xl font-bold">{MOCK_VYCS.length}</p>
+              <p className="text-xs text-muted-foreground">minted to date</p>
+            </Card>
+            <Card>
+              <p className="text-sm text-muted-foreground">Active</p>
+              <p className="mt-1 text-3xl font-bold text-primary">{MOCK_VYCS.filter((v) => v.status === "Active").length}</p>
+              <p className="text-xs text-muted-foreground">currently financed</p>
+            </Card>
+            <Card>
+              <p className="text-sm text-muted-foreground">Total value</p>
+              <p className="mt-1 text-3xl font-bold">{formatYield(MOCK_VYCS.reduce((s, v) => s + v.expectedYield, 0))}</p>
+              <p className="text-xs text-muted-foreground">across all certificates</p>
+            </Card>
+            <Card>
+              <p className="text-sm text-muted-foreground">Pending reviews</p>
+              <p className="mt-1 text-3xl font-bold text-amber-600">3</p>
+              <p className="text-xs text-muted-foreground">evidence submissions</p>
+            </Card>
+          </StaggerReveal>
+
+          {/* Filter bar */}
+          <Reveal>
+            <div className="mb-6 flex flex-wrap items-center gap-3 rounded-xl border border-border bg-card px-4 py-3">
+              <span className="text-sm font-medium text-muted-foreground">Filter:</span>
+              <select className="rounded-lg border border-border bg-background px-3 py-1.5 text-sm">
+                <option>All crops</option>
+                {crops.map((c) => <option key={c}>{c}</option>)}
+              </select>
+              <select className="rounded-lg border border-border bg-background px-3 py-1.5 text-sm">
+                <option>All statuses</option>
+                {statuses.map((s) => <option key={s}>{s}</option>)}
+              </select>
+              <input
+                type="text"
+                placeholder="Search by address or VYC..."
+                className="ml-auto min-w-[200px] flex-1 rounded-lg border border-border bg-background px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
+              />
             </div>
           </Reveal>
 

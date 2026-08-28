@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { Plus, Loader2 } from "lucide-react";
+import { Plus, Loader2, Sprout, Shield, TrendingUp } from "lucide-react";
 import { Card, CardHeader } from "../components/ui/Card";
 import { ScoreRing, StatusBadge } from "../components/ui/Badges";
 import { SiteHeader } from "../components/SiteHeader";
@@ -233,11 +233,92 @@ export default function Dashboard() {
 
             {/* Sidebar */}
             <div className="space-y-6">
+              {/* Welcome / next action */}
+              <Reveal direction="right" delay={0.12}>
+                <Card className="border-primary/20 bg-primary/5">
+                  <div className="flex items-start gap-3">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                      <Sprout className="h-5 w-5" />
+                    </div>
+                    <div className="flex-1">
+                      <p className="text-sm text-muted-foreground">Good morning</p>
+                      <p className="font-semibold">Ready to log activity?</p>
+                      <p className="mt-1 text-sm text-muted-foreground">
+                        Recording this season&apos;s planting helps maintain your trust score.
+                      </p>
+                      <Link
+                        href="/mint"
+                        className="mt-3 inline-flex items-center gap-1.5 text-sm font-semibold text-primary hover:underline"
+                      >
+                        Log planting activity →
+                      </Link>
+                    </div>
+                  </div>
+                </Card>
+              </Reveal>
+
               <Reveal direction="right" delay={0.15}>
                 <ActivityFeed {...activity} onMarkRead={activity.markRead} />
               </Reveal>
 
+              {/* Insurance card */}
+              <Reveal direction="right" delay={0.18}>
+                <Card>
+                  <div className="flex items-start gap-3">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-600">
+                      <Shield className="h-5 w-5" />
+                    </div>
+                    <div className="flex-1">
+                      <CardHeader
+                        title="Crop Insurance"
+                        subtitle="Parametric coverage"
+                      />
+                      <div className="mt-2 flex items-center gap-2">
+                        <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-2 py-0.5 text-xs font-medium text-emerald-600">
+                          <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                          Active
+                        </span>
+                        <span className="text-xs text-muted-foreground">Season 2026</span>
+                      </div>
+                      <p className="mt-2 text-sm text-muted-foreground">
+                        Weather-triggered payout for drought and flood events. Coverage tied to your VYC status.
+                      </p>
+                    </div>
+                  </div>
+                </Card>
+              </Reveal>
+
+              {/* Financing card */}
               <Reveal direction="right" delay={0.2}>
+                <Card>
+                  <div className="flex items-start gap-3">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-500/10 text-amber-600">
+                      <TrendingUp className="h-5 w-5" />
+                    </div>
+                    <div className="flex-1">
+                      <CardHeader
+                        title="Financing"
+                        subtitle="Eligible liquidity"
+                      />
+                      <div className="mt-2">
+                        <p className="text-2xl font-bold">$12,400</p>
+                        <p className="text-xs text-muted-foreground">estimated eligible amount</p>
+                      </div>
+                      <p className="mt-2 text-sm text-muted-foreground">
+                        Based on your active VYCs and repayment history. Lenders can fund against your certificates.
+                      </p>
+                      <Link
+                        href="/score"
+                        className="mt-3 inline-flex items-center gap-1.5 text-sm font-semibold text-primary hover:underline"
+                      >
+                        View score details →
+                      </Link>
+                    </div>
+                  </div>
+                </Card>
+              </Reveal>
+
+              <Reveal direction="right" delay={0.22}>
                 <Card>
                   <div className="flex items-start gap-4">
                     <FloatingImage

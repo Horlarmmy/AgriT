@@ -1,10 +1,27 @@
 "use client";
 
+import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { Leaf, ShieldCheck, Sprout, TrendingUp, Wallet, FileCheck2 } from "lucide-react";
 import { SiteHeader } from "./components/SiteHeader";
 import { SiteFooter } from "./components/SiteFooter";
 import { Reveal, StaggerReveal, FloatingImage } from "./components/motion/Reveal";
+
+const heroSlides = [
+  {
+    src: "/assets/hero-imgs/hero_protocol_primary.png",
+    alt: "AgriTrust protocol visualization",
+  },
+  {
+    src: "/assets/hero-imgs/hero_vyc_certificate.png",
+    alt: "Verifiable Yield Certificate",
+  },
+  {
+    src: "/assets/hero-imgs/hero_liquidity_bridge.png",
+    alt: "Liquidity bridge connecting farmers to capital",
+  },
+];
 
 const steps = [
   {
@@ -59,13 +76,25 @@ const features = [
 ];
 
 export default function Home() {
+  const [currentSlide, setCurrentSlide] = useState(0);
+  const [isPaused, setIsPaused] = useState(false);
+
+  const nextSlide = useCallback(() => {
+    setCurrentSlide((prev) => (prev + 1) % heroSlides.length);
+  }, []);
+
+  useEffect(() => {
+    if (isPaused) return;
+    const timer = setInterval(nextSlide, 5500);
+    return () => clearInterval(timer);
+  }, [isPaused, nextSlide]);
+
   return (
     <>
       <SiteHeader />
       <main>
-        {/* Hero Section */}
+        {/* Hero Section — two-column */}
         <section className="relative overflow-hidden">
-          {/* Abstract background pattern */}
           <div
             aria-hidden
             className="pointer-events-none absolute inset-0 opacity-[0.08]"
@@ -75,47 +104,86 @@ export default function Home() {
               backgroundPosition: "center",
             }}
           />
-          <div className="relative mx-auto max-w-6xl px-4 sm:px-6 pt-16 pb-20 text-center">
-            <Reveal>
-              <span className="inline-flex items-center rounded-full border border-border bg-muted px-3 py-1 text-xs font-medium text-muted-foreground">
-                Fair Finance for Smallholder Farmers on Stellar
-              </span>
-            </Reveal>
-            <Reveal delay={0.1}>
-              <h1 className="mx-auto mt-6 max-w-3xl text-4xl font-bold tracking-tight sm:text-6xl">
-                Borrow against your <span className="text-primary">behavior</span>, not your paperwork.
-              </h1>
-            </Reveal>
-            <Reveal delay={0.2}>
-              <p className="mx-auto mt-6 max-w-2xl text-lg text-muted-foreground">
-                AgriTrust mints Verifiable Yield Certificates from real farming activity — giving
-                smallholder farmers the track record that lenders and insurers can trust.
-              </p>
-            </Reveal>
-            <Reveal delay={0.3}>
-              <div className="mt-10 flex flex-wrap items-center justify-center gap-4">
-                <Link
-                  href="/dashboard"
-                  className="inline-flex items-center gap-2 rounded-xl bg-primary px-6 py-3 font-semibold text-primary-foreground transition-opacity hover:opacity-90"
-                >
-                  Explore the Dashboard
-                </Link>
-                <Link
-                  href="/score"
-                  className="inline-flex items-center gap-2 rounded-xl border border-border bg-card px-6 py-3 font-semibold transition-colors hover:bg-muted"
-                >
-                  See how scoring works
-                </Link>
+          <div className="relative mx-auto max-w-6xl px-4 sm:px-6 pt-12 pb-16 sm:pt-16 sm:pb-20">
+            <div className="grid items-center gap-8 md:grid-cols-2 md:gap-12">
+              {/* Left — copy */}
+              <div>
+                <Reveal>
+                  <span className="inline-flex items-center rounded-full border border-border bg-muted px-3 py-1 text-xs font-medium text-muted-foreground">
+                    Fair Finance for Smallholder Farmers on Stellar
+                  </span>
+                </Reveal>
+                <Reveal delay={0.1}>
+                  <h1 className="mt-6 text-4xl font-bold tracking-tight sm:text-5xl lg:text-6xl" style={{ lineHeight: 1.02 }}>
+                    Borrow against your <span className="text-primary">behavior</span>, not your paperwork.
+                  </h1>
+                </Reveal>
+                <Reveal delay={0.2}>
+                  <p className="mt-6 max-w-xl text-lg text-muted-foreground">
+                    AgriTrust mints Verifiable Yield Certificates from real farming activity — giving
+                    smallholder farmers the track record that lenders and insurers can trust.
+                  </p>
+                </Reveal>
+                <Reveal delay={0.3}>
+                  <div className="mt-10 flex flex-wrap items-center gap-4">
+                    <Link
+                      href="/dashboard"
+                      className="inline-flex items-center gap-2 rounded-xl bg-primary px-6 py-3 font-semibold text-primary-foreground transition-opacity hover:opacity-90"
+                    >
+                      Explore the Dashboard
+                    </Link>
+                    <Link
+                      href="/score"
+                      className="inline-flex items-center gap-2 rounded-xl border border-border bg-card px-6 py-3 font-semibold transition-colors hover:bg-muted"
+                    >
+                      See how scoring works
+                    </Link>
+                  </div>
+                </Reveal>
               </div>
-            </Reveal>
-            {/* Hero image */}
-            <FloatingImage
-              src="/assets/hero-imgs/hero_protocol_primary.png"
-              alt="AgriTrust protocol visualization"
-              className="mx-auto mt-12 max-w-md w-full object-contain"
-              duration={8}
-              distance={6}
-            />
+
+              {/* Right — slideshow */}
+              <Reveal direction="right" delay={0.15}>
+                <div
+                  className="relative"
+                  onMouseEnter={() => setIsPaused(true)}
+                  onMouseLeave={() => setIsPaused(false)}
+                  onFocus={() => setIsPaused(true)}
+                  onBlur={() => setIsPaused(false)}
+                >
+                  <div className="relative aspect-square max-w-md mx-auto overflow-hidden rounded-3xl border border-border bg-card">
+                    {heroSlides.map((slide, i) => (
+                      <Image
+                        key={slide.src}
+                        src={slide.src}
+                        alt={slide.alt}
+                        fill
+                        priority={i === 0}
+                        sizes="(max-width: 768px) 100vw, 50vw"
+                        className={`object-contain p-6 transition-opacity duration-700 ease-in-out ${
+                          i === currentSlide ? "opacity-100" : "opacity-0"
+                        }`}
+                      />
+                    ))}
+                  </div>
+                  {/* Progress dots */}
+                  <div className="mt-4 flex items-center justify-center gap-2">
+                    {heroSlides.map((_, i) => (
+                      <button
+                        key={i}
+                        onClick={() => setCurrentSlide(i)}
+                        aria-label={`Go to slide ${i + 1}`}
+                        className={`h-2 rounded-full transition-all duration-300 ${
+                          i === currentSlide
+                            ? "w-8 bg-primary"
+                            : "w-2 bg-muted-foreground/30 hover:bg-muted-foreground/50"
+                        }`}
+                      />
+                    ))}
+                  </div>
+                </div>
+              </Reveal>
+            </div>
           </div>
         </section>
 

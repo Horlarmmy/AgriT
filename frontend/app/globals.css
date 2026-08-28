@@ -48,6 +48,7 @@
   --color-accent: hsl(var(--accent));
   --color-accent-foreground: hsl(var(--accent-foreground));
   --color-destructive: hsl(var(--destructive));
+  --font-sans: var(--font-manrope), system-ui, sans-serif;
 }
 
 html {
