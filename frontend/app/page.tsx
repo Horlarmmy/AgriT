@@ -93,8 +93,8 @@ export default function Home() {
     <>
       <SiteHeader />
       <main>
-        {/* Hero Section — two-column */}
-        <section className="relative overflow-hidden">
+        {/* Hero Section — full viewport height, two-column */}
+        <section className="relative flex min-h-[calc(100vh-5rem)] items-center overflow-hidden">
           <div
             aria-hidden
             className="pointer-events-none absolute inset-0 opacity-[0.08]"
@@ -104,7 +104,7 @@ export default function Home() {
               backgroundPosition: "center",
             }}
           />
-          <div className="relative mx-auto max-w-6xl px-4 sm:px-6 pt-12 pb-16 sm:pt-16 sm:pb-20">
+          <div className="relative mx-auto w-full max-w-6xl px-4 sm:px-6 py-12 sm:py-16">
             <div className="grid items-center gap-8 md:grid-cols-2 md:gap-12">
               {/* Left — copy */}
               <div>
@@ -151,7 +151,7 @@ export default function Home() {
                   onFocus={() => setIsPaused(true)}
                   onBlur={() => setIsPaused(false)}
                 >
-                  <div className="relative aspect-square max-w-md mx-auto overflow-hidden rounded-3xl border border-border bg-card">
+                  <div className="relative aspect-square max-w-md mx-auto">
                     {heroSlides.map((slide, i) => (
                       <Image
                         key={slide.src}
@@ -160,7 +160,7 @@ export default function Home() {
                         fill
                         priority={i === 0}
                         sizes="(max-width: 768px) 100vw, 50vw"
-                        className={`object-contain p-6 transition-opacity duration-700 ease-in-out ${
+                        className={`object-contain transition-opacity duration-700 ease-in-out ${
                           i === currentSlide ? "opacity-100" : "opacity-0"
                         }`}
                       />

@@ -24,7 +24,7 @@ export function SiteHeader() {
 
   return (
     <header className="sticky top-0 z-40 w-full border-b border-border bg-background/80 backdrop-blur">
-      <div className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-4 px-4 sm:px-6">
+      <div className="mx-auto flex h-20 max-w-6xl items-center justify-between gap-4 px-4 sm:px-6">
         <Link href="/" className="flex items-center gap-2 font-semibold">
           <Image
             src="/agrit-logo.svg"
@@ -37,7 +37,7 @@ export function SiteHeader() {
             AgriTrust <span className="hidden text-muted-foreground sm:inline text-sm font-normal">· Verifiable Yield Certificates</span>
           </span>
         </Link>
-        <nav className="flex items-center gap-1 sm:gap-2">
+        <nav className="hidden md:flex items-center gap-1">
           {links.map((link) => (
             <Link
               key={link.href}
@@ -58,6 +58,12 @@ export function SiteHeader() {
               {resolvedTheme === "dark" ? <Sun size={18} /> : <Moon size={18} />}
             </button>
           )}
+          <Link
+            href="/login"
+            className="inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90"
+          >
+            Login / Connect Wallet
+          </Link>
           <WalletButton />
         </div>
       </div>

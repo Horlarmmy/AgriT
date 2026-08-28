@@ -1,19 +1,28 @@
+"use client";
+
 import { Card, CardHeader } from "../components/ui/Card";
-import { StatusBadge } from "../components/ui/Badges";
+import { StatusBadge, ScoreRing } from "../components/ui/Badges";
 import { SiteHeader } from "../components/SiteHeader";
 import { SiteFooter } from "../components/SiteFooter";
-import { MOCK_VYCS, formatDate, formatYield, shortAddress } from "../lib/mock";
+import { MOCK_VYCS, formatYield, shortAddress } from "../lib/mock";
 import { Reveal, StaggerReveal, FloatingImage } from "../components/motion/Reveal";
+import { AlertTriangle, CheckCircle2, Clock, FileText, Users, Shield } from "lucide-react";
 
 const crops = ["MAIZE", "COCOA", "SOYBEAN", "RICE", "CASSAVA"];
 const statuses = ["Active", "Redeemed", "Expired", "Cancelled"];
+
+const recentActivity = [
+  { action: "VYC #4 minted", farmer: "GCP...VKX4", time: "2 hours ago", status: "success" },
+  { action: "Evidence submitted", farmer: "GDQ...AB12", time: "5 hours ago", status: "pending" },
+  { action: "KYC approved", farmer: "GCFG...3FM4", time: "1 day ago", status: "success" },
+  { action: "VYC #2 redeemed", farmer: "GCP...VKX4", time: "2 days ago", status: "info" },
+];
 
 export default function Admin() {
   return (
     <>
       <SiteHeader />
       <main className="relative mx-auto max-w-6xl px-4 sm:px-6 py-10">
-        {/* Background pattern */}
         <div
           aria-hidden
           className="pointer-events-none absolute inset-0 opacity-[0.04]"
@@ -35,10 +44,9 @@ export default function Admin() {
                 distance={4}
               />
               <div>
-                <h1 className="text-3xl font-bold">VYC Administration</h1>
+                <h1 className="text-3xl font-bold">Admin Console</h1>
                 <p className="mt-2 text-sm text-muted-foreground">
-                  Mint Verifiable Yield Certificates and update their lifecycle status. Form is read-only
-                  for now — it wires to <code className="rounded bg-muted px-1.5 py-0.5 text-xs">POST /admin/vyc/mint</code> in the next release.
+                  Monitor VYCs, evidence, KYC, and system health.
                 </p>
               </div>
             </div>
@@ -88,91 +96,10 @@ export default function Admin() {
             </div>
           </Reveal>
 
-          <section className="grid gap-8 lg:grid-cols-[380px_1fr]">
-            {/* Mint form */}
-            <Reveal direction="left" delay={0.1}>
-              <Card>
-                <div className="flex items-center gap-3 mb-4">
-                  <FloatingImage
-                    src="/assets/3d-reusage-icons-img/icon_planting_seed.png"
-                    alt="Planting seed"
-                    className="h-10 w-10 object-contain"
-                    duration={6}
-                    distance={3}
-                  />
-                  <CardHeader title="Mint a new VYC" subtitle="Protected by x-admin-token on the API" />
-                </div>
-                <form className="space-y-4">
-                  <div>
-                    <label htmlFor="farmer" className="mb-1 block text-sm font-medium">
-                      Farmer Stellar address
-                    </label>
-                    <input
-                      id="farmer"
-                      type="text"
-                      defaultValue="GCPUBA6Y7GZBC5E4VSU7CTHNWN3WQ4FM47R3FM4RH2AWUBAKJ2NBVKX4"
-                      disabled
-                      className="w-full rounded-xl border border-border bg-background px-3 py-2 text-sm disabled:opacity-70"
-                    />
-                  </div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label htmlFor="crop" className="mb-1 block text-sm font-medium">Crop</label>
-                      <select id="crop" className="w-full rounded-xl border border-border bg-background px-3 py-2 text-sm">
-                        {crops.map((c) => (
-                          <option key={c}>{c}</option>
-                        ))}
-                      </select>
-                    </div>
-                    <div>
-                      <label htmlFor="region" className="mb-1 block text-sm font-medium">Region</label>
-                      <select id="region" className="w-full rounded-xl border border-border bg-background px-3 py-2 text-sm">
-                        <option>NG-OYO</option>
-                        <option>NG-ON</option>
-                        <option>NG-KW</option>
-                        <option>NG-EB</option>
-                      </select>
-                    </div>
-                  </div>
-                  <div>
-                    <label htmlFor="yield" className="mb-1 block text-sm font-medium">
-                      Expected harvest value (USD)
-                    </label>
-                    <input
-                      id="yield"
-                      type="number"
-                      defaultValue={45000}
-                      disabled
-                      className="w-full rounded-xl border border-border bg-background px-3 py-2 text-sm disabled:opacity-70"
-                    />
-                  </div>
-                  <div>
-                    <label htmlFor="score" className="mb-1 block text-sm font-medium">Credit score</label>
-                    <input
-                      id="score"
-                      type="number"
-                      min={0}
-                      max={100}
-                      defaultValue={82}
-                      className="w-full rounded-xl border border-border bg-background px-3 py-2 text-sm"
-                    />
-                  </div>
-                  <button
-                    type="button"
-                    className="w-full rounded-xl bg-primary px-4 py-2.5 font-semibold text-primary-foreground transition-opacity hover:opacity-90"
-                  >
-                    Mint VYC (submission disabled in preview)
-                  </button>
-                  <p className="text-xs text-muted-foreground">
-                    On submission, the backend verifies proof-of-activity, derives the score and hash, and
-                    calls <code className="rounded bg-muted px-1 py-0.5">mint_vyc</code> on-chain.
-                  </p>
-                </form>
-              </Card>
-            </Reveal>
-
+          {/* Main content with sidebar */}
+          <section className="grid gap-8 lg:grid-cols-[1fr_340px]">
             {/* Certificate registry */}
-            <Reveal direction="right" delay={0.15}>
+            <Reveal direction="left" delay={0.1}>
               <Card className="p-0">
                 <div className="p-6 pb-0 flex items-center gap-3">
                   <FloatingImage
@@ -183,8 +110,8 @@ export default function Admin() {
                     distance={3}
                   />
                   <CardHeader
-                    title="Certificate registry"
-                    subtitle="Latest minted VYCs"
+                    title="Certificate Registry"
+                    subtitle="All minted VYCs"
                   />
                 </div>
                 <div className="overflow-x-auto">
@@ -195,18 +122,20 @@ export default function Admin() {
                         <th className="px-6 py-3 font-medium">Crop</th>
                         <th className="px-6 py-3 font-medium">Region</th>
                         <th className="px-6 py-3 font-medium">Value</th>
-                        <th className="px-6 py-3 font-medium">Minted</th>
+                        <th className="px-6 py-3 font-medium">Score</th>
                         <th className="px-6 py-3 font-medium">Status</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-border">
                       {MOCK_VYCS.map((vyc) => (
                         <tr key={vyc.id} className="hover:bg-muted/50 transition-colors">
-                          <td className="px-6 py-3 font-mono">{shortAddress(vyc.activityHash)}</td>
+                          <td className="px-6 py-3 font-mono text-xs">{shortAddress(vyc.activityHash)}</td>
                           <td className="px-6 py-3">{vyc.crop}</td>
                           <td className="px-6 py-3">{vyc.region}</td>
                           <td className="px-6 py-3">{formatYield(vyc.expectedYield)}</td>
-                          <td className="px-6 py-3">{formatDate(vyc.createdAt)}</td>
+                          <td className="px-6 py-3">
+                            <ScoreRing score={vyc.score} />
+                          </td>
                           <td className="px-6 py-3">
                             <StatusBadge status={vyc.status} />
                           </td>
@@ -227,6 +156,117 @@ export default function Admin() {
                 </div>
               </Card>
             </Reveal>
+
+            {/* Sidebar */}
+            <div className="space-y-6">
+              {/* System health */}
+              <Reveal direction="right" delay={0.12}>
+                <Card>
+                  <CardHeader title="System Health" subtitle="Contract & network status" />
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <CheckCircle2 className="h-4 w-4 text-emerald-500" />
+                        <span className="text-sm">Soroban contract</span>
+                      </div>
+                      <span className="text-xs font-medium text-emerald-600">Operational</span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <CheckCircle2 className="h-4 w-4 text-emerald-500" />
+                        <span className="text-sm">Horizon indexer</span>
+                      </div>
+                      <span className="text-xs font-medium text-emerald-600">Operational</span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <AlertTriangle className="h-4 w-4 text-amber-500" />
+                        <span className="text-sm">Oracle feed</span>
+                      </div>
+                      <span className="text-xs font-medium text-amber-600">Degraded</span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <CheckCircle2 className="h-4 w-4 text-emerald-500" />
+                        <span className="text-sm">Friendbot</span>
+                      </div>
+                      <span className="text-xs font-medium text-emerald-600">Active</span>
+                    </div>
+                  </div>
+                </Card>
+              </Reveal>
+
+              {/* Pending reviews */}
+              <Reveal direction="right" delay={0.15}>
+                <Card>
+                  <CardHeader title="Pending Reviews" subtitle="Requires operator action" />
+                  <div className="space-y-3">
+                    {[
+                      { label: "Evidence: Maize harvest", farmer: "GCP...VKX4", icon: FileText },
+                      { label: "KYC: Adewale Capital", farmer: "GDQ...AB12", icon: Users },
+                      { label: "VYC renewal request", farmer: "GCFG...3FM4", icon: Clock },
+                    ].map((item, i) => (
+                      <div key={i} className="flex items-center gap-3 rounded-lg border border-border p-3 transition-colors hover:bg-muted/30">
+                        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-muted text-muted-foreground">
+                          <item.icon className="h-4 w-4" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium truncate">{item.label}</p>
+                          <p className="text-xs text-muted-foreground font-mono">{item.farmer}</p>
+                        </div>
+                        <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/10 px-2 py-0.5 text-xs font-medium text-amber-600">
+                          <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />
+                          Pending
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </Card>
+              </Reveal>
+
+              {/* Recent activity */}
+              <Reveal direction="right" delay={0.18}>
+                <Card>
+                  <CardHeader title="Recent Activity" subtitle="Latest protocol events" />
+                  <div className="space-y-3">
+                    {recentActivity.map((item, i) => (
+                      <div key={i} className="flex items-start gap-3 text-sm">
+                        <div className={`mt-0.5 h-2 w-2 rounded-full flex-shrink-0 ${
+                          item.status === "success" ? "bg-emerald-500" :
+                          item.status === "pending" ? "bg-amber-500" : "bg-primary"
+                        }`} />
+                        <div className="flex-1 min-w-0">
+                          <p className="font-medium">{item.action}</p>
+                          <p className="text-xs text-muted-foreground font-mono">{item.farmer}</p>
+                        </div>
+                        <span className="text-xs text-muted-foreground whitespace-nowrap">{item.time}</span>
+                      </div>
+                    ))}
+                  </div>
+                </Card>
+              </Reveal>
+
+              {/* Quick actions */}
+              <Reveal direction="right" delay={0.2}>
+                <Card>
+                  <CardHeader title="Quick Actions" />
+                  <div className="space-y-2">
+                    <button className="flex w-full items-center gap-2 rounded-lg border border-border px-3 py-2.5 text-sm font-medium transition-colors hover:bg-muted">
+                      <Shield className="h-4 w-4 text-muted-foreground" />
+                      Review pending KYC
+                    </button>
+                    <button className="flex w-full items-center gap-2 rounded-lg border border-border px-3 py-2.5 text-sm font-medium transition-colors hover:bg-muted">
+                      <FileText className="h-4 w-4 text-muted-foreground" />
+                      Export VYC registry
+                    </button>
+                    <button className="flex w-full items-center gap-2 rounded-lg border border-border px-3 py-2.5 text-sm font-medium transition-colors hover:bg-muted">
+                      <AlertTriangle className="h-4 w-4 text-muted-foreground" />
+                      View system alerts
+                    </button>
+                  </div>
+                </Card>
+              </Reveal>
+            </div>
           </section>
         </div>
       </main>
