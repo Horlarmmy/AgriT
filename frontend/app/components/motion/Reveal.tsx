@@ -1,6 +1,7 @@
 "use client";
 
 import { ReactNode, useRef } from "react";
+import Image, { ImageProps } from "next/image";
 import { motion, useInView, useReducedMotion } from "framer-motion";
 
 const easeOutExpo = [0.21, 0.47, 0.32, 0.98] as const;
@@ -121,5 +122,41 @@ export function FloatingImage({
       animate={{ y: [0, -distance, 0] }}
       transition={{ repeat: Infinity, duration, ease: "easeInOut" }}
     />
+  );
+}
+
+interface AnimatedImageProps extends Omit<ImageProps, "alt"> {
+  alt: string;
+  wrapperClassName?: string;
+  delay?: number;
+}
+
+export function AnimatedImage({
+  alt,
+  wrapperClassName,
+  delay = 0,
+  className,
+  ...props
+}: AnimatedImageProps) {
+  const ref = useRef<HTMLDivElement>(null);
+  const isInView = useInView(ref, { once: true, margin: "-60px" });
+  const prefersReducedMotion = useReducedMotion();
+
+  return (
+    <motion.div
+      ref={ref}
+      className={wrapperClassName}
+      initial={prefersReducedMotion ? { opacity: 0 } : { opacity: 0, scale: 0.92 }}
+      animate={isInView ? { opacity: 1, scale: 1 } : undefined}
+      transition={{ duration: 0.7, delay, ease: easeOutExpo }}
+    >
+      <Image
+        alt={alt}
+        className={className}
+        loading="lazy"
+        sizes="(max-width: 768px) 100vw, 50vw"
+        {...props}
+      />
+    </motion.div>
   );
 }
