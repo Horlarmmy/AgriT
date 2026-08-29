@@ -2,6 +2,7 @@ import Fastify from 'fastify';
 import cors from '@fastify/cors';
 import { appConfig } from './config/app.config.js';
 import { registerAdminRoutes } from './routes/admin.routes.js';
+import { registerAuthRoutes } from './routes/auth.routes.js';
 import { healthRoute } from './routes/health.routes.js';
 import { registerActivityRoutes } from './routes/activity.routes.js';
 import { registerScoreRoutes } from './routes/score.routes.js';
@@ -32,6 +33,13 @@ export async function buildServer() {
       adminMint:
         'POST /admin/vyc/mint  body: { farmer, expectedYield, crop, region, score? | activities?, activityHash?, dryRun? }',
       adminStatus: 'POST /admin/vyc/:id/status  body: { status, dryRun? }',
+      farmerRegister: 'POST /auth/farmer/register  body: { provider, providerSubject, name, region, crop }',
+      farmerLogin: 'POST /auth/farmer/login  body: { provider, providerSubject }',
+      farmerProfile: 'GET /farmer/me  (auth: Bearer token)',
+      lenderOnboard: 'POST /auth/lender/onboard  body: { walletAddress }',
+      lenderLogin: 'POST /auth/lender/login  body: { walletAddress }',
+      lenderKyc: 'POST /auth/lender/kyc  body: { walletAddress }',
+      lenderProfile: 'GET /lender/me  (auth: Bearer token)',
     },
     docs: 'See backend/README.md in the repo for full usage.',
   }));
@@ -41,6 +49,7 @@ export async function buildServer() {
   await registerVycRoutes(fastify);
   await registerScoreRoutes(fastify);
   await registerAdminRoutes(fastify);
+  await registerAuthRoutes(fastify);
 
   fastify.setErrorHandler((error, _request, reply) => {
     logger.error({ error }, 'Unhandled error');
