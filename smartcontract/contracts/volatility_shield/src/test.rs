@@ -622,6 +622,39 @@ fn test_deactivate_condition() {
 }
 
 #[test]
+#[should_panic(expected = "Error(Contract, #11)")]
+fn test_deactivate_condition_unauthorized() {
+    let (env, admin, contract_id) = setup();
+    env.mock_all_auths();
+
+    let client = AgriTrustClient::new(&env, &contract_id);
+    client.init(&admin);
+
+    let condition_id = client.report_condition(
+        &admin,
+        &ConditionType::Drought,
+        &symbol_short!("NGLA"),
+        &symbol_short!("2026_Q1"),
+        &80,
+    );
+
+    let non_admin = Address::generate(&env);
+    client.deactivate_condition(&non_admin, &condition_id);
+}
+
+#[test]
+#[should_panic(expected = "Error(Contract, #16)")]
+fn test_deactivate_condition_not_found() {
+    let (env, admin, contract_id) = setup();
+    env.mock_all_auths();
+
+    let client = AgriTrustClient::new(&env, &contract_id);
+    client.init(&admin);
+
+    client.deactivate_condition(&admin, &999);
+}
+
+#[test]
 fn test_get_condition_query() {
     let (env, admin, contract_id) = setup();
     env.mock_all_auths();

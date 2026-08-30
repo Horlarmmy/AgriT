@@ -115,6 +115,15 @@ pub enum InsuranceError {
     ConditionNotFound = 16,
 }
 
+// ─── Helpers ─────────────────────────────────────────────────────────────────
+
+/// Deterministic payout: expected_yield * severity / 100.
+/// Both `check_insurance_eligibility` and `trigger_insurance_payout` use this
+/// formula; keeping it in one place avoids subtle drift.
+fn compute_payout(expected_yield: i128, severity: u32) -> i128 {
+    expected_yield * (severity as i128) / 100
+}
+
 // ─── Contract ────────────────────────────────────────────────────────────────
 
 #[contract]
@@ -424,29 +433,35 @@ impl AgriTrust {
     }
 
     /// Deactivate a season condition so it can no longer trigger payouts.
-    pub fn deactivate_condition(env: Env, admin: Address, condition_id: u64) {
+    pub fn deactivate_condition(
+        env: Env,
+        admin: Address,
+        condition_id: u64,
+    ) -> Result<(), InsuranceError> {
         admin.require_auth();
 
         let stored_admin: Address = env
             .storage()
             .instance()
             .get(&DataKey::Admin)
-            .unwrap_or_else(|| panic!("Not initialised"));
+            .ok_or(InsuranceError::NotInitialized)?;
 
         if admin != stored_admin {
-            panic!("Unauthorized");
+            return Err(InsuranceError::Unauthorized);
         }
 
         let mut cond: SeasonCondition = env
             .storage()
             .persistent()
             .get(&DataKey::SeasonCondition(condition_id))
-            .unwrap_or_else(|| panic!("Condition not found"));
+            .ok_or(InsuranceError::ConditionNotFound)?;
 
         cond.active = false;
         env.storage()
             .persistent()
             .set(&DataKey::SeasonCondition(condition_id), &cond);
+
+        Ok(())
     }
 
     /// Read a condition by id.
@@ -506,7 +521,7 @@ impl AgriTrust {
             return None;
         }
 
-        let payout_amount = vyc.expected_yield * (best_severity as i128) / 100;
+        let payout_amount = compute_payout(vyc.expected_yield, best_severity);
 
         Some(InsurancePayout {
             vyc_id,
@@ -575,7 +590,7 @@ impl AgriTrust {
             return Err(InsuranceError::AlreadyTriggered);
         }
 
-        let payout_amount = vyc.expected_yield * (cond.severity as i128) / 100;
+        let payout_amount = compute_payout(vyc.expected_yield, cond.severity);
         let now = env.ledger().timestamp();
 
         let payout = InsurancePayout {
