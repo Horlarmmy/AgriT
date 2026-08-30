@@ -54,6 +54,7 @@ export function decryptSeed(encryptedSeed: string): string {
 async function fundTestnetAccount(address: string): Promise<void> {
   const network = process.env.STELLAR_NETWORK || 'testnet';
   if (network !== 'testnet') return;
+  if (process.env.NODE_ENV === 'test') return; // skip in tests
 
   try {
     const url = `https://friendbot.stellar.org?addr=${encodeURIComponent(address)}`;
@@ -262,9 +263,16 @@ export function getLenderIdByWallet(walletAddress: string): string | null {
 const JWT_SECRET = process.env.JWT_SECRET || 'dev-jwt-secret-not-for-production';
 const TOKEN_EXPIRY_SECONDS = 24 * 60 * 60; // 24 hours
 
-function base64url(data: Buffer | string): string {
-  const str = typeof data === 'string' ? data : data.toString('base64');
-  return str.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+function base64url(data: Buffer | Uint8Array | string): string {
+  let buf: Buffer;
+  if (typeof data === 'string') {
+    buf = Buffer.from(data, 'utf-8');
+  } else if (data instanceof Uint8Array && !(data instanceof Buffer)) {
+    buf = Buffer.from(data);
+  } else {
+    buf = data as Buffer;
+  }
+  return buf.toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 }
 
 function base64urlDecode(str: string): Buffer {
@@ -334,4 +342,13 @@ export async function verifySessionToken(
   } catch {
     return null;
   }
+}
+
+// ─── Test helpers ──────────────────────────────────────────────────────────
+// Clears in-memory stores. Only for use in tests.
+
+export function resetAuthStores(): void {
+  farmerStore.clear();
+  lenderStore.clear();
+  lenderByWallet.clear();
 }

@@ -9,6 +9,8 @@ import {
   onboardLender,
   updateLenderKyc,
   getLenderProfile,
+  getLenderIdByWallet,
+  generateSessionToken,
   verifySessionToken,
 } from '../services/auth.service.js';
 import { isAddress } from '../utils/validators.js';
@@ -189,8 +191,6 @@ export async function registerAuthRoutes(fastify: FastifyInstance) {
 
     const result = onboardLender({ walletAddress: body.walletAddress });
 
-    // Also issue a session token so the lender can immediately access /lender/me
-    const { generateSessionToken } = await import('../services/auth.service.js');
     const token = await generateSessionToken(result.lenderId, 'lender');
 
     return reply.code(201).send({
@@ -213,7 +213,6 @@ export async function registerAuthRoutes(fastify: FastifyInstance) {
       });
     }
 
-    const { getLenderIdByWallet, generateSessionToken } = await import('../services/auth.service.js');
     const lenderId = getLenderIdByWallet(body.walletAddress);
 
     if (!lenderId) {
